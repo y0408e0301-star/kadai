@@ -1,0 +1,450 @@
+<title>タスク管理アプリ モック</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: header bar + board that scrolls sideways; fixed-width lists side by side, "add list" at the end */
+:root {
+  --ground: #e7ecf3;
+  --list: #f5f7fa;
+  --card: #ffffff;
+  --ink: #1d2533;
+  --quiet: #5f6b7d;
+  --edge: #cfd7e3;
+  --accent: #2f6fd6;
+  --accent-soft: rgba(47, 111, 214, .12);
+  --danger: #c2413a;
+  --shadow: 0 1px 0 rgba(29, 37, 51, .12);
+  --p-high: #c2413a;
+  --p-mid: #b7791f;
+  --p-low: #4f7a5a;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic UI", Meiryo, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #141a24; --list: #1d2532; --card: #273142; --ink: #e6ebf3; --quiet: #9aa6b8;
+    --edge: #34405a; --accent: #6b9cf0; --accent-soft: rgba(107, 156, 240, .16); --danger: #ef7a72;
+    --shadow: 0 1px 0 rgba(0, 0, 0, .4); --p-high: #ef7a72; --p-mid: #e0a84a; --p-low: #86b892; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #141a24; --list: #1d2532; --card: #273142; --ink: #e6ebf3; --quiet: #9aa6b8;
+  --edge: #34405a; --accent: #6b9cf0; --accent-soft: rgba(107, 156, 240, .16); --danger: #ef7a72;
+  --shadow: 0 1px 0 rgba(0, 0, 0, .4); --p-high: #ef7a72; --p-mid: #e0a84a; --p-low: #86b892; color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--ground); color: var(--ink); font-family: var(--font-body); font-size: 14px;
+  display: flex; flex-direction: column; padding-inline: 16px; box-sizing: border-box;
+}
+*, *::before, *::after { box-sizing: inherit; }
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+header {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding-block: 14px; border-bottom: 1px solid var(--edge);
+}
+header h1 { font-size: 18px; font-weight: 700; margin: 0; }
+.board-name { color: var(--quiet); font-size: 13px; }
+.badge {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 1px 6px;
+}
+.spacer { flex: 1; }
+.save-state { color: var(--quiet); font-size: 12px; }
+.ghost-btn {
+  background: none; border: 1px solid var(--edge); border-radius: 6px; padding: 4px 10px; color: var(--quiet); font-size: 12px;
+}
+.ghost-btn:hover { color: var(--ink); border-color: var(--quiet); }
+
+.board {
+  flex: 1; min-height: 0; display: flex; align-items: flex-start; gap: 12px;
+  overflow-x: auto; padding-block: 16px;
+}
+
+.list {
+  flex: 0 0 272px; background: var(--list); border: 1px solid var(--edge); border-radius: 10px;
+  display: flex; flex-direction: column; max-height: 100%;
+}
+.list-head { display: flex; align-items: center; gap: 6px; padding: 10px 10px 6px 12px; }
+.list-title {
+  flex: 1; min-width: 0; font-weight: 700; font-size: 14px; background: none; border: 0; text-align: left;
+  padding: 4px 4px; border-radius: 4px; overflow-wrap: anywhere;
+}
+.list-title:hover { background: var(--accent-soft); }
+.count { font-family: var(--font-mono); font-size: 11px; color: var(--quiet); font-variant-numeric: tabular-nums; }
+.icon-btn {
+  width: 26px; height: 26px; border: 0; border-radius: 4px; background: none; color: var(--quiet);
+  font-size: 16px; line-height: 1; display: grid; place-items: center; flex: none;
+}
+.icon-btn:hover { background: var(--accent-soft); color: var(--ink); }
+
+.confirm {
+  margin: 0 10px 8px; padding: 8px 10px; border: 1px solid var(--danger); border-radius: 6px; font-size: 12px;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.confirm span { flex: 1 1 100%; }
+.danger-btn { background: var(--danger); color: #fff; border: 0; border-radius: 4px; padding: 4px 10px; font-size: 12px; }
+
+.cards { display: flex; flex-direction: column; gap: 8px; padding: 2px 10px 4px; min-height: 12px; overflow-y: auto; }
+.card {
+  background: var(--card); border: 1px solid var(--edge); border-radius: 6px; box-shadow: var(--shadow);
+  padding: 8px 6px 8px 10px; display: flex; flex-direction: column; gap: 6px; cursor: grab;
+}
+.card:hover { border-color: var(--quiet); }
+.card.dragging { opacity: .4; }
+.card.editing { cursor: default; padding-right: 10px; }
+.card-top { display: flex; align-items: flex-start; gap: 4px; }
+.card-title { flex: 1; min-width: 0; overflow-wrap: anywhere; line-height: 1.5; padding-top: 2px; }
+.card-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+
+/* 優先順位：高・中・低のラジオボタン（つながった 3 つのボタンの見た目） */
+.prio { display: inline-flex; border: 1px solid var(--edge); border-radius: 5px; overflow: hidden; }
+.prio-opt { position: relative; cursor: pointer; }
+.prio-opt input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.prio-opt span { display: block; padding: 1px 8px; font-size: 12px; color: var(--quiet); }
+.prio-opt + .prio-opt span { border-left: 1px solid var(--edge); }
+.prio-opt:hover span { color: var(--ink); }
+.prio-opt input:checked + span { color: #fff; font-weight: 700; }
+.prio-high input:checked + span { background: var(--p-high); }
+.prio-mid input:checked + span { background: var(--p-mid); }
+.prio-low input:checked + span { background: var(--p-low); }
+.prio-opt input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.due { font-size: 12px; color: var(--quiet); font-variant-numeric: tabular-nums; }
+.due.soon { color: var(--p-mid); font-weight: 500; }
+.due.over { color: var(--danger); font-weight: 700; }
+.field-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.field-label { font-size: 12px; color: var(--quiet); }
+.field-row input[type="date"] { width: auto; flex: 1; min-width: 0; }
+.card .icon-btn { width: 22px; height: 22px; font-size: 14px; visibility: hidden; }
+.card:hover .icon-btn, .card:focus-within .icon-btn { visibility: visible; }
+.placeholder { height: 38px; border: 1.5px dashed var(--accent); border-radius: 6px; background: var(--accent-soft); flex: none; }
+
+.add-card { margin: 4px 10px 10px; }
+.add-trigger {
+  width: 100%; text-align: left; background: none; border: 0; border-radius: 6px; padding: 6px 8px; color: var(--quiet);
+}
+.add-trigger:hover { background: var(--accent-soft); color: var(--ink); }
+.composer { display: flex; flex-direction: column; gap: 6px; }
+.composer textarea, .composer input, .edit-input {
+  width: 100%; border: 1px solid var(--accent); border-radius: 6px; background: var(--card); padding: 6px 8px; resize: none;
+}
+.composer-row { display: flex; gap: 6px; align-items: center; }
+.primary-btn { background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 5px 12px; font-weight: 500; }
+.error { color: var(--danger); font-size: 12px; }
+
+.add-list {
+  flex: 0 0 272px; border: 1.5px dashed var(--edge); border-radius: 10px; padding: 10px;
+}
+.add-list .add-trigger { padding: 4px 6px; }
+
+footer { color: var(--quiet); font-size: 12px; padding-block: 0 12px; }
+footer code { font-family: var(--font-mono); font-size: 11px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .card, .add-trigger, .list-title { transition: background-color .12s, border-color .12s; }
+}
+</style>
+
+<header>
+  <h1>タスク管理アプリ</h1>
+  <span class="board-name">私のタスク</span>
+  <span class="badge">Mock</span>
+  <span class="spacer"></span>
+  <span class="save-state" id="save-state">自動保存オン</span>
+  <button class="ghost-btn" id="sort-btn" type="button" title="各リストのカードを期限が近い順に並べます。同じ期限なら優先順位の高い順">期限順に並べる</button>
+  <button class="ghost-btn" id="reset-btn" type="button">サンプルに戻す</button>
+</header>
+
+<main class="board" id="board" aria-label="ボード"></main>
+
+<footer>カードはドラッグで移動できます。優先順位はカードの「高・中・低」で切り替え、期限はカードをクリックして設定します。データはこのブラウザの <code>localStorage</code>（キー <code>trello-board</code>）に保存されます。</footer>
+
+<script>
+(() => {
+  const KEY = 'trello-board';
+  const PRIOS = [{ key: 'high', label: '高' }, { key: 'mid', label: '中' }, { key: 'low', label: '低' }];
+  const prioRank = p => ({ high: 0, mid: 1, low: 2 })[p] ?? 1;
+  // サンプルの期限は今日から何日後かで決める（いつ開いても近い日付になる）
+  const daysFromToday = n => {
+    const d = new Date(); d.setDate(d.getDate() + n);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const sample = () => ({
+    lists: [
+      { id: 'list-1', title: 'やること', cards: [
+        { id: 'card-1', title: 'レポートを書く', priority: 'high', due: daysFromToday(6) },
+        { id: 'card-2', title: '資料を読む', priority: 'mid', due: daysFromToday(2) },
+        { id: 'card-5', title: '参考文献を探す', priority: 'low', due: null }
+      ] },
+      { id: 'list-2', title: '作業中', cards: [
+        { id: 'card-3', title: 'スライドを作る', priority: 'high', due: daysFromToday(1) }
+      ] },
+      { id: 'list-3', title: '完了', cards: [
+        { id: 'card-4', title: '課題を提出する', priority: 'mid', due: daysFromToday(-1) }
+      ] }
+    ]
+  });
+
+  let board = load();
+  // 画面だけの一時状態（保存しない）
+  const ui = { editingList: null, editingCard: null, confirmList: null, addingCardIn: null, addingList: false, error: null };
+  let drag = null; // { cardId, fromListId }
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data && Array.isArray(data.lists)) {
+          // 前の版で保存したカードには priority / due がないので補う
+          data.lists.forEach(l => l.cards.forEach(c => {
+            if (!c.priority) c.priority = 'mid';
+            if (c.due === undefined) c.due = null;
+          }));
+          return data;
+        }
+      }
+    } catch (e) {}
+    return sample();
+  }
+  function save() {
+    const el = document.getElementById('save-state');
+    try {
+      localStorage.setItem(KEY, JSON.stringify(board));
+      el.textContent = '保存しました ' + new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    } catch (e) {
+      el.textContent = 'このブラウザでは保存できません';
+    }
+  }
+  const newId = prefix => prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const findList = id => board.lists.find(l => l.id === id);
+  function commit() { save(); render(); }
+
+  function h(tag, attrs = {}, ...children) {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+      else if (k === 'class') el.className = v;
+      else if (v !== false && v != null) el.setAttribute(k, v === true ? '' : v);
+    }
+    for (const c of children.flat()) if (c != null) el.append(c);
+    return el;
+  }
+
+  function render() {
+    const root = document.getElementById('board');
+    root.replaceChildren(...board.lists.map(renderList), renderAddList());
+    const auto = root.querySelector('[data-autofocus]');
+    if (auto) { auto.focus(); if (auto.select) auto.select(); }
+  }
+
+  function renderList(list) {
+    const head = h('div', { class: 'list-head' },
+      ui.editingList === list.id
+        ? inlineEdit(list.title, v => { list.title = v; ui.editingList = null; commit(); }, () => { ui.editingList = null; render(); }, 'list-title-input')
+        : h('button', { class: 'list-title', type: 'button', title: 'クリックで名前を変更',
+            onclick: () => { ui.editingList = list.id; render(); } }, list.title),
+      h('span', { class: 'count' }, String(list.cards.length)),
+      h('button', { class: 'icon-btn', type: 'button', 'aria-label': `リスト「${list.title}」を削除`,
+        onclick: () => { ui.confirmList = list.id; render(); } }, '×')
+    );
+
+    const confirm = ui.confirmList === list.id
+      ? h('div', { class: 'confirm', role: 'alert' },
+          h('span', {}, `「${list.title}」とカード ${list.cards.length} 枚を削除しますか？`),
+          h('button', { class: 'danger-btn', type: 'button', 'data-autofocus': true,
+            onclick: () => { board.lists = board.lists.filter(l => l !== list); ui.confirmList = null; commit(); } }, '削除する'),
+          h('button', { class: 'ghost-btn', type: 'button', onclick: () => { ui.confirmList = null; render(); } }, 'キャンセル'))
+      : null;
+
+    const cards = h('div', { class: 'cards', 'data-list': list.id }, list.cards.map(c => renderCard(list, c)));
+    wireDrop(cards, list);
+
+    return h('section', { class: 'list', 'aria-label': list.title }, head, confirm, cards, renderAddCard(list));
+  }
+
+  // 優先順位のラジオボタン（高・中・低）。name をカードごとに分けて、グループが混ざらないようにする
+  function prioGroup(name, value, onPick) {
+    return h('div', { class: 'prio', role: 'radiogroup', 'aria-label': '優先順位' },
+      PRIOS.map(p => h('label', { class: 'prio-opt prio-' + p.key, title: '優先順位：' + p.label },
+        h('input', { type: 'radio', name, id: name + '-' + p.key, value: p.key, checked: value === p.key,
+          onchange: () => onPick(p.key) }),
+        h('span', {}, p.label))));
+  }
+
+  function dueLabel(card) {
+    if (!card.due) return h('span', { class: 'due' }, '期限なし');
+    const d = new Date(card.due + 'T00:00');
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const diff = Math.round((d - today) / 864e5);
+    const md = `${d.getMonth() + 1}/${d.getDate()}`;
+    const text = diff < 0 ? `${md} 期限切れ` : diff === 0 ? `${md} 今日まで` : diff === 1 ? `${md} 明日まで` : `${md} まで`;
+    return h('span', { class: 'due' + (diff < 0 ? ' over' : diff <= 2 ? ' soon' : '') }, '期限 ' + text);
+  }
+
+  function cardEditor(card) {
+    let priority = card.priority;
+    const title = h('input', { class: 'edit-input', id: 'edit-title-' + card.id, value: card.title, 'data-autofocus': true, 'aria-label': 'タイトル' });
+    const due = h('input', { class: 'edit-input', type: 'date', id: 'edit-due-' + card.id, value: card.due || '' });
+    const err = h('div', { class: 'error', hidden: true }, 'タイトルを入力してください');
+    const save = () => {
+      const v = title.value.trim();
+      if (!v) { err.hidden = false; title.focus(); return; }
+      Object.assign(card, { title: v, due: due.value || null, priority });
+      ui.editingCard = null; commit();
+    };
+    const cancel = () => { ui.editingCard = null; render(); };
+    const onKey = e => {
+      if (e.key === 'Enter') { e.preventDefault(); save(); }
+      if (e.key === 'Escape') cancel();
+    };
+    title.addEventListener('keydown', onKey);
+    due.addEventListener('keydown', onKey);
+    return h('div', { class: 'card editing composer' }, title, err,
+      h('div', { class: 'field-row' }, h('label', { class: 'field-label', for: due.id }, '期限'), due),
+      h('div', { class: 'field-row' }, h('span', { class: 'field-label' }, '優先順位'),
+        prioGroup('edit-prio-' + card.id, priority, k => { priority = k; })),
+      h('div', { class: 'composer-row' },
+        h('button', { class: 'primary-btn', type: 'button', onclick: save }, '保存'),
+        h('button', { class: 'ghost-btn', type: 'button', onclick: cancel }, 'キャンセル')));
+  }
+
+  function renderCard(list, card) {
+    if (ui.editingCard === card.id) return cardEditor(card);
+    const el = h('div', { class: 'card', draggable: 'true', tabindex: '0', 'data-card': card.id,
+        title: 'クリックで編集・ドラッグで移動',
+        onclick: e => { if (!e.target.closest('.icon-btn, .prio')) { ui.editingCard = card.id; render(); } },
+        onkeydown: e => { if (e.key === 'Enter' && e.target === el) { ui.editingCard = card.id; render(); } },
+        ondragstart: e => {
+          drag = { cardId: card.id, fromListId: list.id };
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', card.id);
+          requestAnimationFrame(() => el.classList.add('dragging'));
+        },
+        ondragend: () => { drag = null; el.classList.remove('dragging'); removePlaceholder(); } },
+      h('div', { class: 'card-top' },
+        h('span', { class: 'card-title' }, card.title),
+        h('button', { class: 'icon-btn', type: 'button', 'aria-label': `カード「${card.title}」を削除`,
+          onclick: () => { list.cards = list.cards.filter(c => c !== card); commit(); } }, '×')),
+      h('div', { class: 'card-meta' },
+        prioGroup('prio-' + card.id, card.priority, k => { card.priority = k; commit(); }),
+        dueLabel(card)));
+    return el;
+  }
+
+  // 1 行入力。Enter で確定、Esc で取り消し、空なら元に戻す
+  function inlineEdit(value, onSave, onCancel, id) {
+    let done = false;
+    const finish = ok => {
+      if (done) return; done = true;
+      const v = input.value.trim();
+      ok && v ? onSave(v) : onCancel();
+    };
+    const input = h('input', { class: 'edit-input', id, value, 'data-autofocus': true, 'aria-label': '名前',
+      onkeydown: e => { if (e.key === 'Enter') finish(true); if (e.key === 'Escape') finish(false); },
+      onblur: () => finish(true) });
+    return input;
+  }
+
+  function composer({ id, placeholder, buttonLabel, multiline, extras = [], onAdd, onClose }) {
+    const field = h(multiline ? 'textarea' : 'input', { id, placeholder, rows: multiline ? 2 : null, 'data-autofocus': true, 'aria-label': placeholder });
+    const err = h('div', { class: 'error', hidden: true }, 'タイトルを入力してください');
+    const submit = () => {
+      const v = field.value.trim();
+      if (!v) { err.hidden = false; field.focus(); return; }
+      onAdd(v);
+    };
+    field.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); }
+      if (e.key === 'Escape') onClose();
+    });
+    return h('div', { class: 'composer' }, field, err, extras,
+      h('div', { class: 'composer-row' },
+        h('button', { class: 'primary-btn', type: 'button', onclick: submit }, buttonLabel),
+        h('button', { class: 'icon-btn', type: 'button', 'aria-label': '閉じる', onclick: onClose }, '×')));
+  }
+
+  function renderAddCard(list) {
+    const close = () => { ui.addingCardIn = null; ui.error = null; render(); };
+    if (ui.addingCardIn === list.id) {
+      let priority = 'mid';
+      const due = h('input', { class: 'edit-input', type: 'date', id: 'new-due-' + list.id });
+      const extras = [
+        h('div', { class: 'field-row' }, h('label', { class: 'field-label', for: due.id }, '期限'), due),
+        h('div', { class: 'field-row' }, h('span', { class: 'field-label' }, '優先順位'),
+          prioGroup('new-prio-' + list.id, priority, k => { priority = k; }))
+      ];
+      return h('div', { class: 'add-card' },
+        composer({ id: 'new-card-' + list.id, placeholder: 'カードのタイトル', buttonLabel: 'カードを追加', multiline: true, extras,
+          onAdd: v => { list.cards.push({ id: newId('card'), title: v, priority, due: due.value || null }); commit(); }, onClose: close }));
+    }
+    return h('div', { class: 'add-card' },
+      h('button', { class: 'add-trigger', type: 'button',
+        onclick: () => { ui.addingCardIn = list.id; ui.addingList = false; ui.error = null; render(); } }, '＋ カードを追加'));
+  }
+
+  function renderAddList() {
+    const close = () => { ui.addingList = false; ui.error = null; render(); };
+    return h('div', { class: 'add-list' },
+      ui.addingList
+        ? composer({ id: 'new-list', placeholder: 'リストの名前', buttonLabel: 'リストを追加',
+            onAdd: v => { board.lists.push({ id: newId('list'), title: v, cards: [] }); commit(); }, onClose: close })
+        : h('button', { class: 'add-trigger', type: 'button',
+            onclick: () => { ui.addingList = true; ui.addingCardIn = null; ui.error = null; render(); } }, '＋ リストを追加'));
+  }
+
+  // ---- ドラッグ＆ドロップ（HTML Drag and Drop API） ----
+  let placeholder = null;
+  function removePlaceholder() { if (placeholder) { placeholder.remove(); placeholder = null; } }
+  function dropIndex(container, y) {
+    const cards = [...container.querySelectorAll('.card:not(.dragging)')];
+    const i = cards.findIndex(c => { const r = c.getBoundingClientRect(); return y < r.top + r.height / 2; });
+    return { index: i === -1 ? cards.length : i, before: cards[i] || null };
+  }
+  function wireDrop(container, list) {
+    container.addEventListener('dragover', e => {
+      if (!drag) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const { before } = dropIndex(container, e.clientY);
+      if (!placeholder) placeholder = h('div', { class: 'placeholder' });
+      if (before) container.insertBefore(placeholder, before); else container.append(placeholder);
+    });
+    container.addEventListener('dragleave', e => {
+      if (!container.contains(e.relatedTarget)) removePlaceholder();
+    });
+    container.addEventListener('drop', e => {
+      if (!drag) return;
+      e.preventDefault();
+      const { index } = dropIndex(container, e.clientY);
+      const from = findList(drag.fromListId);
+      const card = from.cards.find(c => c.id === drag.cardId);
+      // 同じリスト内で下へ動かすときは、抜き取る分だけ位置がずれない（.dragging を除いて数えているため）
+      from.cards = from.cards.filter(c => c !== card);
+      list.cards.splice(index, 0, card);
+      drag = null; removePlaceholder(); commit();
+    });
+  }
+
+  // 各リストの中で、期限が近い順に並べる。期限なしは最後、同じ期限なら優先順位の高い順
+  document.getElementById('sort-btn').addEventListener('click', () => {
+    const key = c => c.due || '9999-12-31';
+    board.lists.forEach(l => l.cards.sort((a, b) => key(a).localeCompare(key(b)) || prioRank(a.priority) - prioRank(b.priority)));
+    ui.editingCard = null;
+    commit();
+    document.getElementById('save-state').textContent = '期限順に並べ替えました';
+  });
+
+  document.getElementById('reset-btn').addEventListener('click', () => {
+    board = sample();
+    Object.assign(ui, { editingList: null, editingCard: null, confirmList: null, addingCardIn: null, addingList: false, error: null });
+    commit();
+  });
+
+  render();
+})();
+</script>
