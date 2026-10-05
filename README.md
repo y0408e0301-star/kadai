@@ -7,6 +7,7 @@ git と GitHub の練習用リポジトリです。
 - [backend/](backend/)：API サーバー（Java 21 + Spring Boot）
 - [frontend/](frontend/)：画面（React + TypeScript + Vite）
 - [compose.yaml](compose.yaml)：開発用の PostgreSQL 17
+- [CONTRIBUTING.md](CONTRIBUTING.md)：開発ルール（Issue → ブランチ → Pull Request）。作業前に必ず読む
 
 ## 起動方法
 
