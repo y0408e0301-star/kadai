@@ -3,9 +3,11 @@ package com.example.kanban;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 
-public interface CardRepository extends JpaRepository<Card, Long> {
+// JpaSpecificationExecutor：検索条件を組み合わせて findAll(条件) で探せるようにする
+public interface CardRepository extends JpaRepository<Card, Long>, JpaSpecificationExecutor<Card> {
 
 	List<Card> findAllByOrderByPositionAsc();
 

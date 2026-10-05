@@ -23,3 +23,36 @@ git と GitHub の練習用リポジトリです。
 API サーバーは起動時に Flyway で `backend/src/main/resources/db/migration` の SQL を DB に適用する（初回はテーブル作成と初期リスト 3 つの登録）。接続先は既定で開発用 DB（`localhost:5432/kanban`）。別の DB を使うときは環境変数 `DB_URL`・`DB_USERNAME`・`DB_PASSWORD` を設定する。
 
 データベースを止めるときは `docker compose down`（データは残る）。
+
+## テストデータを入れる
+
+API サーバーを `dev` プロファイルで起動すると、`backend/src/main/resources/db/testdata` のテストデータ（カード 11 枚）も DB に入る。Flyway が 1 回だけ入れるので、2 回目以降の起動では増えない。今あるカードは消さず、「やること」「作業中」「完了」の末尾に追加する。
+
+```
+cd backend
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=dev"
+```
+
+## カードを検索する API
+
+`GET /api/cards` は条件に合うカードを、画面と同じ順（リストの順 → リストの中の順）で返す。条件はどれも省略でき、指定したものをすべて満たすカードを返す。
+
+| パラメーター | 内容 | 例 |
+| --- | --- | --- |
+| `q` | タイトルの部分一致（大文字・小文字は区別しない） | `q=レポート` |
+| `listId` | リストの id | `listId=1` |
+| `priority` | 優先順位（`high`・`mid`・`low`） | `priority=high` |
+| `dueFrom` / `dueTo` | 期限がこの日以降 / この日以前（両端を含む。期限なしのカードは出ない） | `dueTo=2026-10-31` |
+
+`GET /api/cards/{id}` はカード 1 枚を返す。
+
+PowerShell で試すときは `curl.exe` を使う（`Invoke-RestMethod` は日本語が文字化けする）。
+
+```
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
+curl.exe -s -G http://localhost:8080/api/cards --data-urlencode "q=レポート" -d priority=high
+```
+
+```json
+{"cards":[{"id":1,"listId":1,"listTitle":"やること","title":"レポートを書く","priority":"high","due":"2026-10-10"}]}
+```

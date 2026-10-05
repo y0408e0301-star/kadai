@@ -1,14 +1,19 @@
 package com.example.kanban;
 
 import java.time.LocalDate;
+import java.util.List;
 
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.format.annotation.DateTimeFormat.ISO;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -19,7 +24,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-// カードの追加・編集・削除・移動（F-02, F-03, F-08）
+// カードの検索・取得・追加・編集・削除・移動（F-02, F-03, F-08）
 @RestController
 public class CardController {
 
@@ -65,10 +70,31 @@ public class CardController {
 	record CardMoveRequest(@NotNull Long listId, @NotNull @Min(0) Integer position) {
 	}
 
+	// 検索結果：{"cards": [...]}（並び順は画面と同じ）
+	record CardSearchResponse(List<CardDetailResponse> cards) {
+	}
+
 	private final BoardService boardService;
 
 	public CardController(BoardService boardService) {
 		this.boardService = boardService;
+	}
+
+	// 検索：GET /api/cards?q=レポート&listId=1&priority=high&dueFrom=2026-10-01&dueTo=2026-10-31
+	// 条件はどれも省略でき、指定したものをすべて満たすカードを返す。何も指定しなければ全カード
+	@GetMapping("/api/cards")
+	public CardSearchResponse search(
+			@RequestParam(required = false) @Size(max = 200) String q,
+			@RequestParam(required = false) Long listId,
+			@RequestParam(required = false) @Pattern(regexp = "high|mid|low") String priority,
+			@RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate dueFrom,
+			@RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate dueTo) {
+		return new CardSearchResponse(boardService.searchCards(q, listId, priority, dueFrom, dueTo));
+	}
+
+	@GetMapping("/api/cards/{id}")
+	public CardDetailResponse get(@PathVariable Long id) {
+		return boardService.getCard(id);
 	}
 
 	@PostMapping("/api/lists/{listId}/cards")

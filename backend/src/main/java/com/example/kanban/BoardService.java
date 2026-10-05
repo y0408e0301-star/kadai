@@ -2,14 +2,19 @@ package com.example.kanban;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+
+import jakarta.persistence.criteria.Predicate;
 
 // リストとカードの読み書き。1 回の API 呼び出しが 1 つのトランザクションになる
 @Service
@@ -34,6 +39,63 @@ public class BoardService {
 		return listRepository.findAllByOrderByPositionAsc().stream()
 			.map(l -> ListResponse.from(l, cardsByList.getOrDefault(l.getId(), List.of())))
 			.toList();
+	}
+
+	// ---- カードの検索・取得 ----
+
+	// 指定した条件をすべて満たすカードを返す（null・空の条件は使わない）。
+	// 並び順は画面と同じで、リストの position 順 → リストの中の position 順
+	@Transactional(readOnly = true)
+	public List<CardDetailResponse> searchCards(String keyword, Long listId, String priority, LocalDate dueFrom,
+			LocalDate dueTo) {
+		if (listId != null) {
+			findList(listId);
+		}
+		Map<Long, TaskList> lists = listRepository.findAll().stream()
+			.collect(Collectors.toMap(TaskList::getId, Function.identity()));
+
+		return cardRepository.findAll(cardMatches(keyword, listId, priority, dueFrom, dueTo)).stream()
+			.sorted(Comparator.comparingInt((Card c) -> lists.get(c.getListId()).getPosition())
+				.thenComparingInt(Card::getPosition))
+			.map(c -> CardDetailResponse.from(c, lists.get(c.getListId())))
+			.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public CardDetailResponse getCard(Long id) {
+		Card card = findCard(id);
+		return CardDetailResponse.from(card, findList(card.getListId()));
+	}
+
+	// 検索条件を SQL の WHERE にする。期限で絞り込むときは、期限のないカードは含めない
+	private static Specification<Card> cardMatches(String keyword, Long listId, String priority, LocalDate dueFrom,
+			LocalDate dueTo) {
+		return (root, query, cb) -> {
+			List<Predicate> conditions = new ArrayList<>();
+			if (keyword != null && !keyword.isBlank()) {
+				// タイトルの部分一致。大文字・小文字は区別しない
+				String pattern = "%" + escapeLike(keyword.strip().toLowerCase()) + "%";
+				conditions.add(cb.like(cb.lower(root.<String>get("title")), pattern, '\\'));
+			}
+			if (listId != null) {
+				conditions.add(cb.equal(root.get("listId"), listId));
+			}
+			if (priority != null) {
+				conditions.add(cb.equal(root.get("priority"), priority));
+			}
+			if (dueFrom != null) {
+				conditions.add(cb.greaterThanOrEqualTo(root.<LocalDate>get("due"), dueFrom));
+			}
+			if (dueTo != null) {
+				conditions.add(cb.lessThanOrEqualTo(root.<LocalDate>get("due"), dueTo));
+			}
+			return cb.and(conditions.toArray(Predicate[]::new));
+		};
+	}
+
+	// LIKE で特別な意味を持つ % と _ を、ただの文字として探せるようにする
+	private static String escapeLike(String text) {
+		return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
 	}
 
 	// ---- リスト（F-01） ----
