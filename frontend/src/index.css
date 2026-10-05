@@ -1,0 +1,57 @@
+/* 配色とレイアウトは mock/kanban-mock.html に合わせる */
+:root {
+  --ground: #e7ecf3;
+  --list: #f5f7fa;
+  --card: #ffffff;
+  --ink: #1d2533;
+  --quiet: #5f6b7d;
+  --edge: #cfd7e3;
+  --shadow: 0 1px 0 rgba(29, 37, 51, .12);
+  --p-high: #c2413a;
+  --p-mid: #b7791f;
+  --p-low: #4f7a5a;
+  --font-body: "Hiragino Sans", "Yu Gothic UI", Meiryo, sans-serif;
+  --font-mono: ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #141a24; --list: #1d2532; --card: #273142; --ink: #e6ebf3; --quiet: #9aa6b8;
+    --edge: #34405a; --shadow: 0 1px 0 rgba(0, 0, 0, .4);
+    --p-high: #ef7a72; --p-mid: #e0a84a; --p-low: #86b892; color-scheme: dark;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body { background: var(--ground); color: var(--ink); font-family: var(--font-body); font-size: 14px; }
+#root { display: flex; flex-direction: column; padding-inline: 16px; }
+
+header { padding-block: 14px; border-bottom: 1px solid var(--edge); }
+header h1 { font-size: 18px; font-weight: 700; margin: 0; }
+
+.board {
+  flex: 1; min-height: 0; display: flex; align-items: flex-start; gap: 12px;
+  overflow-x: auto; padding-block: 16px;
+}
+
+.list {
+  flex: 0 0 272px; background: var(--list); border: 1px solid var(--edge); border-radius: 10px;
+  display: flex; flex-direction: column; max-height: 100%; padding-bottom: 10px;
+}
+.list-head { display: flex; align-items: center; gap: 6px; padding: 10px 12px 6px 16px; }
+.list-title { flex: 1; min-width: 0; font-size: 14px; margin: 0; overflow-wrap: anywhere; }
+.count { font-family: var(--font-mono); font-size: 11px; color: var(--quiet); }
+
+.cards { display: flex; flex-direction: column; gap: 8px; padding: 2px 10px 0; overflow-y: auto; }
+.card {
+  background: var(--card); border: 1px solid var(--edge); border-radius: 6px; box-shadow: var(--shadow);
+  padding: 8px 10px; display: flex; flex-direction: column; gap: 6px;
+}
+.card-title { overflow-wrap: anywhere; line-height: 1.5; }
+.card-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+.prio { font-size: 12px; font-weight: 700; color: #fff; border-radius: 4px; padding: 1px 8px; }
+.prio-high { background: var(--p-high); }
+.prio-mid { background: var(--p-mid); }
+.prio-low { background: var(--p-low); }
+.due { font-family: var(--font-mono); font-size: 12px; color: var(--quiet); }
