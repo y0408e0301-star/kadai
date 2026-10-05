@@ -121,6 +121,64 @@ class BoardApiTests {
 			.hasStatus(HttpStatus.NOT_FOUND);
 	}
 
+	@Test
+	void カードをキーワードで検索できる() {
+		long first = createList("検索1");
+		long second = createList("検索2");
+		long a = createCard(second, "ZZ検索 Report");
+		long b = createCard(first, "zz検索 レポート");
+		createCard(first, "ZZ検でない別のカード");
+		long c = createCard(first, "ZZ検索 100%_達成");
+
+		// 大文字・小文字は区別せず、画面と同じ順（リストの順 → リストの中の順）で返る
+		assertThat(searchIds("q", "zz検索 re")).containsExactly(a);
+		assertThat(searchIds("q", "zz検索")).containsExactly(b, c, a);
+
+		// % や _ はただの文字として探す
+		assertThat(searchIds("q", "%_")).containsExactly(c);
+
+		// どのリストに入っているかも返る
+		assertThat(mvc.get().uri("/api/cards").param("q", "ZZ検索 レポート").exchange())
+			.bodyJson().extractingPath("$.cards[0].listTitle").isEqualTo("検索1");
+	}
+
+	@Test
+	void カードをリスト_優先順位_期限で絞り込める() {
+		long listId = createList("絞り込み");
+		long high = createCard(listId, "高", "high", "2026-10-10");
+		long mid = createCard(listId, "中", "mid", "2026-10-20");
+		long low = createCard(listId, "低", "low", null);
+
+		String id = String.valueOf(listId);
+		assertThat(searchIds("listId", id)).containsExactly(high, mid, low);
+		assertThat(searchIds("listId", id, "priority", "high")).containsExactly(high);
+
+		// 期限は両端を含む。期限で絞り込むと期限なしのカードは出ない
+		assertThat(searchIds("listId", id, "dueFrom", "2026-10-10", "dueTo", "2026-10-19")).containsExactly(high);
+		assertThat(searchIds("listId", id, "dueFrom", "2026-10-11")).containsExactly(mid);
+		assertThat(searchIds("listId", id, "dueTo", "2026-12-31")).containsExactly(high, mid);
+	}
+
+	@Test
+	void 検索条件がおかしいときはエラーになる() {
+		assertThat(mvc.get().uri("/api/cards?priority=top").exchange()).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(mvc.get().uri("/api/cards?dueFrom=10/10").exchange()).hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(mvc.get().uri("/api/cards?listId=999999").exchange()).hasStatus(HttpStatus.NOT_FOUND);
+	}
+
+	@Test
+	void カードを1枚取得できる() {
+		long listId = createList("取得");
+		long cardId = createCard(listId, "読むカード", "low", "2026-11-01");
+
+		assertThat(mvc.get().uri("/api/cards/{id}", cardId).exchange())
+			.hasStatusOk()
+			.bodyJson().isStrictlyEqualTo("{\"id\":" + cardId + ",\"listId\":" + listId
+					+ ",\"listTitle\":\"取得\",\"title\":\"読むカード\",\"priority\":\"low\",\"due\":\"2026-11-01\"}");
+
+		assertThat(mvc.get().uri("/api/cards/{id}", 999999).exchange()).hasStatus(HttpStatus.NOT_FOUND);
+	}
+
 	private MvcTestResult send(MockMvcTester.MockMvcRequestBuilder request, String json) {
 		return request.contentType(MediaType.APPLICATION_JSON).content(json).exchange();
 	}
@@ -135,6 +193,26 @@ class BoardApiTests {
 		MvcTestResult result = send(mvc.post().uri("/api/lists/{id}/cards", listId), "{\"title\":\"" + title + "\"}");
 		assertThat(result).hasStatus(HttpStatus.CREATED);
 		return idOf(result);
+	}
+
+	private long createCard(long listId, String title, String priority, String due) {
+		String json = "{\"title\":\"" + title + "\",\"priority\":\"" + priority + "\",\"due\":"
+				+ (due == null ? "null" : "\"" + due + "\"") + "}";
+		MvcTestResult result = send(mvc.post().uri("/api/lists/{id}/cards", listId), json);
+		assertThat(result).hasStatus(HttpStatus.CREATED);
+		return idOf(result);
+	}
+
+	// GET /api/cards で返ったカードの id を順に返す。引数は検索条件の名前と値を交互に並べる
+	private List<Long> searchIds(String... nameValues) {
+		MockMvcTester.MockMvcRequestBuilder request = mvc.get().uri("/api/cards");
+		for (int i = 0; i < nameValues.length; i += 2) {
+			request.param(nameValues[i], nameValues[i + 1]);
+		}
+		MvcTestResult result = request.exchange();
+		assertThat(result).hasStatusOk();
+		List<Number> ids = JsonPath.read(body(result), "$.cards[*].id");
+		return ids.stream().map(Number::longValue).toList();
 	}
 
 	private void move(long cardId, long listId, int position) {
