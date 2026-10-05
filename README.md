@@ -20,4 +20,6 @@ git と GitHub の練習用リポジトリです。
 
 ブラウザで http://localhost:5173 を開く。画面から `/api` へのリクエストは API サーバーへ転送される。
 
+API サーバーは起動時に Flyway で `backend/src/main/resources/db/migration` の SQL を DB に適用する（初回はテーブル作成と初期リスト 3 つの登録）。接続先は既定で開発用 DB（`localhost:5432/kanban`）。別の DB を使うときは環境変数 `DB_URL`・`DB_USERNAME`・`DB_PASSWORD` を設定する。
+
 データベースを止めるときは `docker compose down`（データは残る）。

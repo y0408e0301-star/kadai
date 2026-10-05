@@ -55,3 +55,7 @@ header h1 { font-size: 18px; font-weight: 700; margin: 0; }
 .prio-mid { background: var(--p-mid); }
 .prio-low { background: var(--p-low); }
 .due { font-family: var(--font-mono); font-size: 12px; color: var(--quiet); }
+
+.message {
+  padding: 24px;
+}

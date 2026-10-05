@@ -1,25 +1,25 @@
+import { useEffect, useState } from 'react'
 import type { Board, Priority } from './types'
-
-// 仮データ。ステップ 3 で fetch('/api/board') に置き換える
-const sampleBoard: Board = {
-  lists: [
-    {
-      id: 1,
-      title: 'やること',
-      cards: [
-        { id: 1, title: 'レポートを書く', priority: 'high', due: '2026-10-10' },
-        { id: 2, title: '資料を読む', priority: 'mid', due: null },
-      ],
-    },
-    { id: 2, title: '作業中', cards: [] },
-    { id: 3, title: '完了', cards: [] },
-  ],
-}
 
 const priorityLabel: Record<Priority, string> = { high: '高', mid: '中', low: '低' }
 
 function App() {
-  const board = sampleBoard
+  const [board, setBoard] = useState<Board | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  // 起動時にボード全体を API（PostgreSQL）から読む
+  useEffect(() => {
+    fetch('/api/board')
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.json() as Promise<Board>
+      })
+      .then(setBoard)
+      .catch((e: unknown) => setError(String(e)))
+  }, [])
+
+  if (error) return <p className="message">ボードを読み込めませんでした（{error}）。API サーバーが起動しているか確認してください。</p>
+  if (!board) return <p className="message">読み込み中…</p>
 
   return (
     <>
