@@ -1,9 +1,16 @@
-import type { List, Priority } from './types'
+import AddCardForm from './AddCardForm'
+import type { CardCreateRequest, List, Priority } from './types'
 
 const priorityLabel: Record<Priority, string> = { high: '高', mid: '中', low: '低' }
 
+type Props = {
+  lists: List[]
+  // 渡したときだけ各リストの下に「＋ カードを追加」を出す（検索結果の表示中は渡さない）
+  onAddCard?: (listId: number, card: CardCreateRequest) => Promise<void>
+}
+
 // リストを列として並べる。通常のボードと検索結果の両方で使う
-function BoardView({ lists }: { lists: List[] }) {
+function BoardView({ lists, onAddCard }: Props) {
   return (
     <main className="board">
       {lists.map((list) => (
@@ -23,6 +30,7 @@ function BoardView({ lists }: { lists: List[] }) {
               </article>
             ))}
           </div>
+          {onAddCard && <AddCardForm listId={list.id} onAdd={(card) => onAddCard(list.id, card)} />}
         </section>
       ))}
     </main>

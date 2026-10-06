@@ -10,6 +10,8 @@
   --p-high: #c2413a;
   --p-mid: #b7791f;
   --p-low: #4f7a5a;
+  --accent: #2f6fd6;
+  --accent-soft: rgba(47, 111, 214, .12);
   --font-body: "Hiragino Sans", "Yu Gothic UI", Meiryo, sans-serif;
   --font-mono: ui-monospace, Consolas, monospace;
 }
@@ -17,7 +19,8 @@
   :root {
     --ground: #141a24; --list: #1d2532; --card: #273142; --ink: #e6ebf3; --quiet: #9aa6b8;
     --edge: #34405a; --shadow: 0 1px 0 rgba(0, 0, 0, .4);
-    --p-high: #ef7a72; --p-mid: #e0a84a; --p-low: #86b892; color-scheme: dark;
+    --p-high: #ef7a72; --p-mid: #e0a84a; --p-low: #86b892;
+    --accent: #6b9cf0; --accent-soft: rgba(107, 156, 240, .16); color-scheme: dark;
   }
 }
 
@@ -55,6 +58,48 @@ header h1 { font-size: 18px; font-weight: 700; margin: 0; }
 .prio-mid { background: var(--p-mid); }
 .prio-low { background: var(--p-low); }
 .due { font-family: var(--font-mono); font-size: 12px; color: var(--quiet); }
+
+/* カードの追加（＋ カードを追加 → 入力欄） */
+.add-card { margin: 8px 10px 0; }
+.add-trigger {
+  width: 100%; text-align: left; font: inherit; background: none; border: 0; border-radius: 6px;
+  padding: 6px 8px; color: var(--quiet); cursor: pointer;
+}
+.add-trigger:hover { background: var(--accent-soft); color: var(--ink); }
+.composer { display: flex; flex-direction: column; gap: 6px; }
+.composer textarea, .composer input[type="date"] {
+  font: inherit; color: var(--ink); background: var(--card);
+  border: 1px solid var(--accent); border-radius: 6px; padding: 6px 8px;
+}
+.composer textarea { width: 100%; resize: none; }
+.field-row { display: flex; align-items: center; gap: 8px; }
+.field-label { flex: 0 0 4em; font-size: 12px; color: var(--quiet); }
+.field-row input[type="date"] { flex: 1; min-width: 0; }
+.form-error { font-size: 12px; color: var(--p-high); }
+.composer-row { display: flex; align-items: center; gap: 6px; }
+.primary-btn {
+  font: inherit; background: var(--accent); color: #fff; border: 0; border-radius: 6px;
+  padding: 5px 12px; font-weight: 500; cursor: pointer;
+}
+.primary-btn:disabled { opacity: .6; cursor: default; }
+.close-btn {
+  font: inherit; font-size: 16px; line-height: 1; background: none; border: 0; border-radius: 6px;
+  width: 28px; height: 28px; color: var(--quiet); cursor: pointer;
+}
+.close-btn:hover { background: var(--accent-soft); color: var(--ink); }
+
+/* 優先順位：高・中・低のラジオボタン（つながった 3 つのボタンの見た目） */
+.prio-group { display: inline-flex; border: 1px solid var(--edge); border-radius: 5px; overflow: hidden; }
+.prio-opt { position: relative; cursor: pointer; }
+.prio-opt input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.prio-opt span { display: block; padding: 1px 10px; font-size: 12px; color: var(--quiet); }
+.prio-opt + .prio-opt span { border-left: 1px solid var(--edge); }
+.prio-opt:hover span { color: var(--ink); }
+.prio-opt input:checked + span { color: #fff; font-weight: 700; }
+.opt-high input:checked + span { background: var(--p-high); }
+.opt-mid input:checked + span { background: var(--p-mid); }
+.opt-low input:checked + span { background: var(--p-low); }
+.prio-opt input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: -2px; }
 
 .message {
   padding: 24px;

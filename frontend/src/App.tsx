@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { fetchBoard, searchCards } from './api'
+import { createCard, fetchBoard, searchCards } from './api'
 import BoardView from './BoardView'
 import SearchForm from './SearchForm'
-import type { Board, CardDetail, List, SearchConditions } from './types'
+import type { Board, CardCreateRequest, CardDetail, List, SearchConditions } from './types'
 
 function App() {
   const [board, setBoard] = useState<Board | null>(null)
@@ -23,6 +23,14 @@ function App() {
     searchCards(conditions)
       .then(setResults)
       .catch((e: unknown) => setSearchError(String(e)))
+  }
+
+  // API に保存できたら、返ってきたカード（id 付き）をそのリストの末尾に足す
+  const addCard = async (listId: number, card: CardCreateRequest) => {
+    const created = await createCard(listId, card)
+    setBoard((b) => b && {
+      lists: b.lists.map((l) => (l.id === listId ? { ...l, cards: [...l.cards, created] } : l)),
+    })
   }
 
   const clear = () => {
@@ -47,7 +55,7 @@ function App() {
       <SearchForm lists={board.lists} onSearch={search} onClear={clear} />
       {searchError && <p className="search-status error">検索できませんでした（{searchError}）</p>}
       {results !== null && <p className="search-status">検索結果 {results.length} 件</p>}
-      <BoardView lists={lists} />
+      <BoardView lists={lists} onAddCard={results === null ? addCard : undefined} />
     </>
   )
 }

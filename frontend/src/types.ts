@@ -28,6 +28,13 @@ export type CardSearchResult = {
   cards: CardDetail[]
 }
 
+// POST /api/lists/{listId}/cards で送る JSON。due は null で期限なし
+export type CardCreateRequest = {
+  title: string
+  priority: Priority
+  due: string | null
+}
+
 // 検索フォームの値。空文字は「指定なし」
 export type SearchConditions = {
   q: string
