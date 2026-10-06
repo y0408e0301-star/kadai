@@ -135,6 +135,25 @@ class BoardApiTests {
 	}
 
 	@Test
+	void 期限順に並べると期限が近い順_期限なしは最後_同じ期限なら優先順位の高い順になる() {
+		long listId = createList("並べ替え");
+		long none = createCard(listId, "期限なし");
+		long late = createCard(listId, "遅い", "mid", "2026-12-01");
+		long earlyLow = createCard(listId, "早い・低", "low", "2026-10-10");
+		long earlyHigh = createCard(listId, "早い・高", "high", "2026-10-10");
+		long earlyMid = createCard(listId, "早い・中", "mid", "2026-10-10");
+
+		MvcTestResult result = mvc.post().uri("/api/board/sort-by-due").exchange();
+		assertThat(result).hasStatusOk();
+		List<Number> returned = JsonPath.read(body(result), "$.lists[?(@.id == " + listId + ")].cards[*].id");
+
+		List<Long> expected = List.of(earlyHigh, earlyMid, earlyLow, late, none);
+		assertThat(returned.stream().map(Number::longValue).toList()).isEqualTo(expected);
+		// 並べ替えた順が DB に保存されている
+		assertThat(cardIds(listId)).isEqualTo(expected);
+	}
+
+	@Test
 	void リストを消すと中のカードも消える() {
 		long listId = createList("テスト");
 		long cardId = createCard(listId, "消えるカード");
