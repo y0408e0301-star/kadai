@@ -36,6 +36,11 @@ export function updateCard(id: number, changes: CardUpdateRequest): Promise<Card
   return sendJson<Card>('PATCH', `/api/cards/${id}`, changes)
 }
 
+// カードを削除する
+export async function deleteCard(id: number): Promise<void> {
+  await send('DELETE', `/api/cards/${id}`)
+}
+
 // カードを listId のリストの position 番目（0 始まり）へ移動する。同じリストの中の並べ替えにも使う
 export async function moveCard(id: number, listId: number, position: number): Promise<void> {
   await send('PUT', `/api/cards/${id}/move`, { listId, position })

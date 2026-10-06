@@ -20,13 +20,14 @@ type Props = {
   // 渡したときだけ各リストの下に「＋ カードを追加」を出す（検索結果の表示中は渡さない）
   onAddCard?: (listId: number, card: CardCreateRequest) => Promise<void>
   onUpdateCard: (cardId: number, changes: CardUpdateRequest) => void
+  onDeleteCard: (cardId: number) => void
   // 渡したときだけカードをドラッグで移動できる（検索結果の表示中は渡さない）。
   // position は移動先リストでの 0 始まりの位置
   onMoveCard?: (cardId: number, listId: number, position: number) => void
 }
 
 // リストを列として並べる。通常のボードと検索結果の両方で使う
-function BoardView({ lists, onAddCard, onUpdateCard, onMoveCard }: Props) {
+function BoardView({ lists, onAddCard, onUpdateCard, onDeleteCard, onMoveCard }: Props) {
   // ドラッグ中の並び。別のリストの上に来たら、カードをそのリストへ移して見せる。ドラッグしていないときは null
   const [draft, setDraft] = useState<List[] | null>(null)
   const shown = draft ?? lists
@@ -83,6 +84,7 @@ function BoardView({ lists, onAddCard, onUpdateCard, onMoveCard }: Props) {
       <main className="board">
         {shown.map((list) => (
           <ListColumn key={list.id} list={list} draggable={onMoveCard !== undefined} onUpdateCard={onUpdateCard}
+            onDeleteCard={onDeleteCard}
             onAddCard={onAddCard && ((card) => onAddCard(list.id, card))} />
         ))}
       </main>
@@ -94,11 +96,12 @@ type ListProps = {
   list: List
   draggable: boolean
   onUpdateCard: (cardId: number, changes: CardUpdateRequest) => void
+  onDeleteCard: (cardId: number) => void
   onAddCard?: (card: CardCreateRequest) => Promise<void>
 }
 
 // リスト 1 列。カードが 0 枚でもドロップできるように、カードの入れ物をドロップ先にする
-function ListColumn({ list, draggable, onUpdateCard, onAddCard }: ListProps) {
+function ListColumn({ list, draggable, onUpdateCard, onDeleteCard, onAddCard }: ListProps) {
   const { setNodeRef } = useDroppable({ id: listKey(list.id), disabled: !draggable })
   return (
     <section className="list" data-list-id={list.id} aria-label={list.title}>
@@ -111,7 +114,7 @@ function ListColumn({ list, draggable, onUpdateCard, onAddCard }: ListProps) {
         <div ref={setNodeRef} className="cards">
           {list.cards.map((card) => (
             <CardView key={card.id} card={card} draggable={draggable}
-              onUpdate={(changes) => onUpdateCard(card.id, changes)} />
+              onUpdate={(changes) => onUpdateCard(card.id, changes)} onDelete={() => onDeleteCard(card.id)} />
           ))}
         </div>
       </SortableContext>

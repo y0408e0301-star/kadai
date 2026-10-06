@@ -68,7 +68,15 @@ header h1 { font-size: 18px; font-weight: 700; margin: 0; }
   width: 100%; font: inherit; color: var(--ink); background: var(--card);
   border: 1px solid var(--accent); border-radius: 6px; padding: 6px 8px;
 }
-.card-title { overflow-wrap: anywhere; line-height: 1.5; }
+.card-top { display: flex; align-items: flex-start; gap: 4px; }
+.card-title { flex: 1; min-width: 0; overflow-wrap: anywhere; line-height: 1.5; }
+/* カードの × はマウスを乗せたときかフォーカスしたときだけ出す（モックと同じ） */
+.icon-btn {
+  flex: none; width: 22px; height: 22px; font: inherit; font-size: 14px; line-height: 1;
+  background: none; border: 0; border-radius: 4px; color: var(--quiet); cursor: pointer; visibility: hidden;
+}
+.icon-btn:hover { background: var(--accent-soft); color: var(--ink); }
+.card:hover .icon-btn, .card:focus-within .icon-btn { visibility: visible; }
 .card-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 
 /* 期限：2 日以内は黄色、過ぎたら赤（F-08） */
