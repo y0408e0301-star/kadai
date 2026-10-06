@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { createCard, fetchBoard, moveCard, searchCards, sortCardsByDue, updateCard } from './api'
+import { createCard, deleteCard, fetchBoard, moveCard, searchCards, sortCardsByDue, updateCard } from './api'
 import BoardView from './BoardView'
 import SearchForm from './SearchForm'
 import type { Board, Card, CardCreateRequest, CardDetail, CardUpdateRequest, List, SearchConditions } from './types'
@@ -65,6 +65,13 @@ function App() {
     save(() => updateCard(cardId, changes))
   }
 
+  // カードの削除。ボードと検索結果の両方から消す
+  const removeCard = (cardId: number) => {
+    setBoard((b) => b && { lists: b.lists.map((l) => ({ ...l, cards: l.cards.filter((c) => c.id !== cardId) })) })
+    setResults((r) => r && r.filter((c) => c.id !== cardId))
+    save(() => deleteCard(cardId))
+  }
+
   // ドラッグ＆ドロップでの並べ替え・リスト間の移動
   const dropCard = (cardId: number, listId: number, position: number) => {
     setBoard((b) => {
@@ -115,12 +122,12 @@ function App() {
       <SearchForm lists={board.lists} onSearch={search} onClear={clear} />
       {searchError && <p className="search-status error">検索できませんでした（{searchError}）</p>}
       {results !== null && <p className="search-status">検索結果 {results.length} 件</p>}
-      <BoardView lists={lists} onUpdateCard={editCard}
+      <BoardView lists={lists} onUpdateCard={editCard} onDeleteCard={removeCard}
         onAddCard={results === null ? addCard : undefined}
         onMoveCard={results === null ? dropCard : undefined} />
       <footer>
         カードはドラッグ（またはフォーカスして Space → 矢印 → Space）で移動できます。「完了」へ動かすと完了です。
-        クリック（または Enter）でタイトル・期限・優先順位を編集できます。
+        クリック（または Enter）でタイトル・期限・優先順位を編集でき、右上の × で削除できます。
       </footer>
     </>
   )

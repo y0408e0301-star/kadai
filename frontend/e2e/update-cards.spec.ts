@@ -269,6 +269,59 @@ test('保存に失敗したら、そのことを出して DB の状態に表示�
   expect((await cardOf(request, id)).priority).toBe('mid')
 })
 
+test('カード右上の × で削除すると DB からも消え、再読み込みしても出ない', async ({ page, request }) => {
+  const list = await createList(request, '削除')
+  const keep = await createCard(request, list.id, '残すカード')
+  const remove = await createCard(request, list.id, '消すカード')
+
+  await page.goto('/')
+  const column = listColumn(page, list.title)
+  await expect(column.locator('[data-card-id]')).toHaveCount(2)
+
+  // × はマウスを乗せると出る
+  const button = page.getByRole('button', { name: 'カード「消すカード」を削除', exact: true })
+  await expect(button).toBeHidden()
+  await cardEl(page, remove).hover()
+  const saved = waitForApi(page, 'DELETE', `/api/cards/${remove}`)
+  await button.click()
+  expect((await saved).status()).toBe(204)
+
+  // × を押しても編集欄は開かない
+  await expect(page.getByRole('textbox', { name: 'タイトル', exact: true })).toHaveCount(0)
+  expect(await shownIds(column)).toEqual([keep])
+  expect((await request.get(`/api/cards/${remove}`)).status()).toBe(404)
+  expect(await cardIds(request, list.id)).toEqual([keep])
+
+  await page.reload()
+  await expect(column.locator('[data-card-id]')).toHaveCount(1)
+  expect(await shownIds(column)).toEqual([keep])
+  await expect(column.locator('.count')).toHaveText('1')
+})
+
+test('検索結果の表示中も × で削除でき、結果の件数からも消える', async ({ page, request }) => {
+  const list = await createList(request, '検索して削除')
+  const word = `削除検索${Date.now().toString(36)}`
+  const a = await createCard(request, list.id, `${word} A`)
+  const b = await createCard(request, list.id, `${word} B`)
+
+  await page.goto('/')
+  await page.getByRole('searchbox').fill(word)
+  await page.getByRole('button', { name: '検索', exact: true }).click()
+  await expect(page.getByText('検索結果 2 件')).toBeVisible()
+
+  await cardEl(page, a).hover()
+  const saved = waitForApi(page, 'DELETE', `/api/cards/${a}`)
+  await page.getByRole('button', { name: `カード「${word} A」を削除`, exact: true }).click()
+  expect((await saved).status()).toBe(204)
+
+  await expect(page.getByText('検索結果 1 件')).toBeVisible()
+  expect(await cardIds(request, list.id)).toEqual([b])
+
+  // 検索をやめても消えたまま
+  await page.getByRole('button', { name: 'クリア' }).click()
+  expect(await shownIds(listColumn(page, list.title))).toEqual([b])
+})
+
 test('「期限順に並べる」で各リストが期限順に並び、その順で保存される', async ({ page, request }) => {
   // ボタンはすべてのリストを並べ替えるので、もとのカードの順を覚えておき、最後に戻す
   const before = await board(request)

@@ -26,10 +26,11 @@ type Props = {
   // false のときはドラッグで動かせない（検索結果の表示中）
   draggable: boolean
   onUpdate: (changes: CardUpdateRequest) => void
+  onDelete: () => void
 }
 
 // リストの中のカード 1 枚。クリック（または Enter）で編集欄を開き、ドラッグで移動する
-function CardView({ card, draggable, onUpdate }: Props) {
+function CardView({ card, draggable, onUpdate, onDelete }: Props) {
   const [editing, setEditing] = useState(false)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: cardKey(card.id),
@@ -49,9 +50,9 @@ function CardView({ card, draggable, onUpdate }: Props) {
     )
   }
 
-  // 優先順位のラジオボタンを押したときは編集欄を開かない
+  // 優先順位のラジオボタンや × を押したときは編集欄を開かない
   const onClick = (e: MouseEvent) => {
-    if (!(e.target as Element).closest('.prio-group')) setEditing(true)
+    if (!(e.target as Element).closest('.prio-group, .icon-btn')) setEditing(true)
   }
 
   // ドラッグのキー操作（Space）はカード自体にフォーカスがあるときだけ。ラジオボタンの Space は選択に使う
@@ -65,12 +66,21 @@ function CardView({ card, draggable, onUpdate }: Props) {
     listeners?.onKeyDown?.(e)
   }
 
+  // ドラッグできないとき（検索結果の表示中）は dnd-kit の属性を付けない。
+  // 付けると aria-disabled が中の × やラジオボタンまで「使えない」扱いにしてしまう
+  const dragAttributes = draggable ? attributes : { tabIndex: 0 }
+
   const due = dueLabel(card.due)
   return (
     <article ref={setNodeRef} style={style} className={`card${isDragging ? ' dragging' : ''}`} data-card-id={card.id}
-      {...attributes} {...listeners} onKeyDown={onKeyDown} onClick={onClick}
+      {...dragAttributes} {...listeners} onKeyDown={onKeyDown} onClick={onClick}
       title={draggable ? 'クリックで編集・ドラッグで移動' : 'クリックで編集'}>
-      <div className="card-title">{card.title}</div>
+      <div className="card-top">
+        <div className="card-title">{card.title}</div>
+        {/* × の上でマウスを押してもドラッグを始めない */}
+        <button type="button" className="icon-btn" aria-label={`カード「${card.title}」を削除`} title="削除"
+          onPointerDown={(e) => e.stopPropagation()} onClick={onDelete}>×</button>
+      </div>
       <div className="card-meta">
         <PriorityPicker name={`prio-${card.id}`} value={card.priority}
           onChange={(priority) => onUpdate({ priority })} />
