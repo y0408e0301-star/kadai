@@ -1,10 +1,26 @@
-import type { Board, CardDetail, CardSearchResult, SearchConditions } from './types'
+import type { Board, Card, CardCreateRequest, CardDetail, CardSearchResult, SearchConditions } from './types'
 
 // GET して JSON を返す。200 番台以外はエラーにする
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json() as Promise<T>
+}
+
+// JSON を POST して、返ってきた JSON を返す。200 番台以外はエラーにする
+async function postJson<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json() as Promise<T>
+}
+
+// カードをリストの末尾に追加し、保存されたカード（id 付き）を返す
+export function createCard(listId: number, card: CardCreateRequest): Promise<Card> {
+  return postJson<Card>(`/api/lists/${listId}/cards`, card)
 }
 
 export function fetchBoard(): Promise<Board> {

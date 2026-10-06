@@ -60,6 +60,34 @@ class BoardApiTests {
 	}
 
 	@Test
+	void 追加したカードはリストの末尾に入り_省略した項目は既定値になる() {
+		long listId = createList("テスト");
+		long first = createCard(listId, "1 枚目");
+
+		// タイトルの前後の空白は取り除く。priority を省略すると mid、due を省略すると期限なし
+		MvcTestResult created = send(mvc.post().uri("/api/lists/{id}/cards", listId), "{\"title\":\"  2 枚目  \"}");
+		assertThat(created).hasStatus(HttpStatus.CREATED);
+		assertThat(created).bodyJson().isLenientlyEqualTo("{\"title\":\"2 枚目\",\"priority\":\"mid\",\"due\":null}");
+
+		assertThat(cardIds(listId)).containsExactly(first, idOf(created));
+	}
+
+	@Test
+	void カードの追加で入力がおかしいときやリストがないときはエラーになる() {
+		long listId = createList("テスト");
+		String title201 = "あ".repeat(201);
+		assertThat(send(mvc.post().uri("/api/lists/{id}/cards", listId), "{\"title\":\"" + title201 + "\"}"))
+			.hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(send(mvc.post().uri("/api/lists/{id}/cards", listId), "{\"title\":\"a\",\"priority\":\"top\"}"))
+			.hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(send(mvc.post().uri("/api/lists/{id}/cards", listId), "{\"title\":\"a\",\"due\":\"2026/10/10\"}"))
+			.hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(send(mvc.post().uri("/api/lists/{id}/cards", 999999), "{\"title\":\"a\"}"))
+			.hasStatus(HttpStatus.NOT_FOUND);
+		assertThat(cardIds(listId)).isEmpty();
+	}
+
+	@Test
 	void カードを追加して編集して削除できる() {
 		long listId = createList("テスト");
 		MvcTestResult created = send(mvc.post().uri("/api/lists/{id}/cards", listId),
