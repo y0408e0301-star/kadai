@@ -1,4 +1,6 @@
-import type { Board, Card, CardCreateRequest, CardDetail, CardSearchResult, SearchConditions } from './types'
+import type {
+  Board, Card, CardCreateRequest, CardDetail, CardSearchResult, CardUpdateRequest, SearchConditions,
+} from './types'
 
 // GET して JSON を返す。200 番台以外はエラーにする
 async function getJson<T>(url: string): Promise<T> {
@@ -7,20 +9,41 @@ async function getJson<T>(url: string): Promise<T> {
   return res.json() as Promise<T>
 }
 
-// JSON を POST して、返ってきた JSON を返す。200 番台以外はエラーにする
-async function postJson<T>(url: string, body: unknown): Promise<T> {
+// JSON を送る（本文は省略できる）。200 番台以外はエラーにする
+async function send(method: string, url: string, body?: unknown): Promise<Response> {
   const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    method,
+    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res
+}
+
+// JSON を送って、返ってきた JSON を返す
+async function sendJson<T>(method: string, url: string, body?: unknown): Promise<T> {
+  const res = await send(method, url, body)
   return res.json() as Promise<T>
 }
 
 // カードをリストの末尾に追加し、保存されたカード（id 付き）を返す
 export function createCard(listId: number, card: CardCreateRequest): Promise<Card> {
-  return postJson<Card>(`/api/lists/${listId}/cards`, card)
+  return sendJson<Card>('POST', `/api/lists/${listId}/cards`, card)
+}
+
+// 送った項目だけを変え、変えたあとのカードを返す
+export function updateCard(id: number, changes: CardUpdateRequest): Promise<Card> {
+  return sendJson<Card>('PATCH', `/api/cards/${id}`, changes)
+}
+
+// カードを listId のリストの position 番目（0 始まり）へ移動する。同じリストの中の並べ替えにも使う
+export async function moveCard(id: number, listId: number, position: number): Promise<void> {
+  await send('PUT', `/api/cards/${id}/move`, { listId, position })
+}
+
+// 各リストを期限順に並べ替えて保存し、並べ替えたあとのボードを返す
+export function sortCardsByDue(): Promise<Board> {
+  return sendJson<Board>('POST', '/api/board/sort-by-due')
 }
 
 export function fetchBoard(): Promise<Board> {
