@@ -16,6 +16,21 @@
 - `--no-verify`、`git config core.hooksPath` の変更、force push でフックやルールを回避すること
 - フックに拒否されたときに回避策を探すこと。拒否されたら上の手順に戻る
 - ユーザーの了承なしに PR をマージすること。PR を作ったら URL を伝えて指示を待つ
+- 下の「サーバーのポート」と違うポートでサーバーを起動すること
+
+## サーバーのポート
+
+動作確認などでサーバーを起動するときは、必ず次のポートを使う。
+
+| サーバー | ポート | 決めている場所 |
+| --- | --- | --- |
+| データベース（PostgreSQL） | 5432 | [compose.yaml](compose.yaml) |
+| API サーバー（Spring Boot） | 8080 | Spring Boot の既定値（`server.port` は指定しない） |
+| 画面（Vite） | 5173 | Vite の既定値。`/api` は [frontend/vite.config.ts](frontend/vite.config.ts) の proxy で 8080 へ転送 |
+
+- ポートが使われていたら、そのポートを使っているプロセスを止めてから、上のポートで起動し直す
+- 別のポートでの一時起動（`--server.port`、`--port`、環境変数 `PORT` など）はしない
+- proxy の接続先などを差し替えた一時的な設定ファイルで起動しない
 
 ## PR を作るとき
 
