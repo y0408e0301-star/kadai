@@ -269,7 +269,7 @@ test('保存に失敗したら、そのことを出して DB の状態に表示�
   expect((await cardOf(request, id)).priority).toBe('mid')
 })
 
-test('カード右上の × で削除すると DB からも消え、再読み込みしても出ない', async ({ page, request }) => {
+test('カード右上の × → 確認の「削除する」で削除すると DB からも消え、再読み込みしても出ない', async ({ page, request }) => {
   const list = await createList(request, '削除')
   const keep = await createCard(request, list.id, '残すカード')
   const remove = await createCard(request, list.id, '消すカード')
@@ -282,12 +282,16 @@ test('カード右上の × で削除すると DB からも消え、再読み込
   const button = page.getByRole('button', { name: 'カード「消すカード」を削除', exact: true })
   await expect(button).toBeHidden()
   await cardEl(page, remove).hover()
-  const saved = waitForApi(page, 'DELETE', `/api/cards/${remove}`)
   await button.click()
+
+  // × を押しても編集欄は開かず、確認が出る
+  await expect(page.getByRole('textbox', { name: 'タイトル', exact: true })).toHaveCount(0)
+  const confirm = cardEl(page, remove).getByRole('alert')
+  await expect(confirm).toHaveText(/カード「消すカード」を削除しますか？/)
+  const saved = waitForApi(page, 'DELETE', `/api/cards/${remove}`)
+  await confirm.getByRole('button', { name: '削除する' }).click()
   expect((await saved).status()).toBe(204)
 
-  // × を押しても編集欄は開かない
-  await expect(page.getByRole('textbox', { name: 'タイトル', exact: true })).toHaveCount(0)
   expect(await shownIds(column)).toEqual([keep])
   expect((await request.get(`/api/cards/${remove}`)).status()).toBe(404)
   expect(await cardIds(request, list.id)).toEqual([keep])
@@ -296,6 +300,42 @@ test('カード右上の × で削除すると DB からも消え、再読み込
   await expect(column.locator('[data-card-id]')).toHaveCount(1)
   expect(await shownIds(column)).toEqual([keep])
   await expect(column.locator('.count')).toHaveText('1')
+})
+
+test('確認で「キャンセル」か Esc を押すと削除されない', async ({ page, request }) => {
+  const list = await createList(request, '削除の取り消し')
+  const id = await createCard(request, list.id, '残したいカード')
+  let deleted = false
+  page.on('request', (r) => {
+    if (r.method() === 'DELETE') deleted = true
+  })
+
+  await page.goto('/')
+  const card = cardEl(page, id)
+  const button = page.getByRole('button', { name: 'カード「残したいカード」を削除', exact: true })
+  const confirm = card.getByRole('alert')
+
+  // キャンセルで閉じると、× にフォーカスが戻る
+  await card.hover()
+  await button.click()
+  await confirm.getByRole('button', { name: 'キャンセル' }).click()
+  await expect(confirm).toHaveCount(0)
+  await expect(button).toBeFocused()
+
+  // 確認を出すと「削除する」にフォーカスが移り、Esc で閉じる。
+  // 確認の中をクリックしても編集欄は開かない
+  await button.click()
+  await expect(confirm.getByRole('button', { name: '削除する' })).toBeFocused()
+  await confirm.locator('span').click()
+  await expect(page.getByRole('textbox', { name: 'タイトル', exact: true })).toHaveCount(0)
+  await confirm.getByRole('button', { name: '削除する' }).focus()
+  await page.keyboard.press('Escape')
+  await expect(confirm).toHaveCount(0)
+
+  expect(deleted).toBe(false)
+  expect(await cardIds(request, list.id)).toEqual([id])
+  await page.reload()
+  await expect(cardEl(page, id)).toBeVisible()
 })
 
 test('検索結果の表示中も × で削除でき、結果の件数からも消える', async ({ page, request }) => {
@@ -312,6 +352,7 @@ test('検索結果の表示中も × で削除でき、結果の件数からも�
   await cardEl(page, a).hover()
   const saved = waitForApi(page, 'DELETE', `/api/cards/${a}`)
   await page.getByRole('button', { name: `カード「${word} A」を削除`, exact: true }).click()
+  await cardEl(page, a).getByRole('button', { name: '削除する' }).click()
   expect((await saved).status()).toBe(204)
 
   await expect(page.getByText('検索結果 1 件')).toBeVisible()
