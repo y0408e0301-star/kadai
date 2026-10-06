@@ -127,7 +127,7 @@ function App() {
         onMoveCard={results === null ? dropCard : undefined} />
       <footer>
         カードはドラッグ（またはフォーカスして Space → 矢印 → Space）で移動できます。「完了」へ動かすと完了です。
-        クリック（または Enter）でタイトル・期限・優先順位を編集でき、右上の × で削除できます。
+        クリック（または Enter）でタイトル・期限・優先順位を編集でき、右上の × で削除できます（確認が出ます）。
       </footer>
     </>
   )

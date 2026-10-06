@@ -10,6 +10,7 @@
   --p-high: #c2413a;
   --p-mid: #b7791f;
   --p-low: #4f7a5a;
+  --danger: #c2413a;
   --accent: #2f6fd6;
   --accent-soft: rgba(47, 111, 214, .12);
   --font-body: "Hiragino Sans", "Yu Gothic UI", Meiryo, sans-serif;
@@ -19,7 +20,7 @@
   :root {
     --ground: #141a24; --list: #1d2532; --card: #273142; --ink: #e6ebf3; --quiet: #9aa6b8;
     --edge: #34405a; --shadow: 0 1px 0 rgba(0, 0, 0, .4);
-    --p-high: #ef7a72; --p-mid: #e0a84a; --p-low: #86b892;
+    --p-high: #ef7a72; --p-mid: #e0a84a; --p-low: #86b892; --danger: #ef7a72;
     --accent: #6b9cf0; --accent-soft: rgba(107, 156, 240, .16); color-scheme: dark;
   }
 }
@@ -63,7 +64,7 @@ header h1 { font-size: 18px; font-weight: 700; margin: 0; }
 .card:hover { border-color: var(--quiet); }
 .card:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .card.dragging { opacity: .4; position: relative; z-index: 1; }
-.card.editing { cursor: default; }
+.card.editing, .card.confirming { cursor: default; }
 .edit-input {
   width: 100%; font: inherit; color: var(--ink); background: var(--card);
   border: 1px solid var(--accent); border-radius: 6px; padding: 6px 8px;
@@ -77,6 +78,16 @@ header h1 { font-size: 18px; font-weight: 700; margin: 0; }
 }
 .icon-btn:hover { background: var(--accent-soft); color: var(--ink); }
 .card:hover .icon-btn, .card:focus-within .icon-btn { visibility: visible; }
+/* 削除の確認（モックのリスト削除の確認と同じ形） */
+.confirm {
+  padding: 8px 10px; border: 1px solid var(--danger); border-radius: 6px; font-size: 12px;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.confirm span { flex: 1 1 100%; overflow-wrap: anywhere; }
+.danger-btn {
+  font: inherit; font-size: 12px; background: var(--danger); color: #fff; border: 0; border-radius: 4px;
+  padding: 4px 10px; cursor: pointer;
+}
 .card-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 
 /* 期限：2 日以内は黄色、過ぎたら赤（F-08） */

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent, MouseEvent } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -29,12 +29,17 @@ type Props = {
   onDelete: () => void
 }
 
-// リストの中のカード 1 枚。クリック（または Enter）で編集欄を開き、ドラッグで移動する
+// リストの中のカード 1 枚。クリック（または Enter）で編集欄を開き、ドラッグで移動する。
+// × で削除の確認を出し、「削除する」で削除する（F-06）
 function CardView({ card, draggable, onUpdate, onDelete }: Props) {
   const [editing, setEditing] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const deleteButton = useRef<HTMLButtonElement>(null)
+  // 確認を出している間はドラッグしない
+  const canDrag = draggable && !editing && !confirming
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: cardKey(card.id),
-    disabled: !draggable || editing,
+    disabled: !canDrag,
   })
   const style = { transform: CSS.Transform.toString(transform), transition }
 
@@ -50,15 +55,21 @@ function CardView({ card, draggable, onUpdate, onDelete }: Props) {
     )
   }
 
-  // 優先順位のラジオボタンや × を押したときは編集欄を開かない
+  // 優先順位のラジオボタン・× を押したときや、削除の確認を出しているときは編集欄を開かない
   const onClick = (e: MouseEvent) => {
-    if (!(e.target as Element).closest('.prio-group, .icon-btn')) setEditing(true)
+    if (!confirming && !(e.target as Element).closest('.prio-group, .icon-btn')) setEditing(true)
+  }
+
+  // 確認を閉じたら × にフォーカスを戻す（キーボードで続けて操作できるように）
+  const cancelDelete = () => {
+    setConfirming(false)
+    deleteButton.current?.focus()
   }
 
   // ドラッグのキー操作（Space）はカード自体にフォーカスがあるときだけ。ラジオボタンの Space は選択に使う
   const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
     if (e.target !== e.currentTarget) return
-    if (e.key === 'Enter' && !isDragging) {
+    if (e.key === 'Enter' && !isDragging && !confirming) {
       e.preventDefault()
       setEditing(true)
       return
@@ -66,21 +77,28 @@ function CardView({ card, draggable, onUpdate, onDelete }: Props) {
     listeners?.onKeyDown?.(e)
   }
 
-  // ドラッグできないとき（検索結果の表示中）は dnd-kit の属性を付けない。
+  // ドラッグできないとき（検索結果の表示中・確認の表示中）は dnd-kit の属性を付けない。
   // 付けると aria-disabled が中の × やラジオボタンまで「使えない」扱いにしてしまう
-  const dragAttributes = draggable ? attributes : { tabIndex: 0 }
+  const dragAttributes = canDrag ? attributes : { tabIndex: 0 }
 
   const due = dueLabel(card.due)
   return (
-    <article ref={setNodeRef} style={style} className={`card${isDragging ? ' dragging' : ''}`} data-card-id={card.id}
+    <article ref={setNodeRef} style={style} className={`card${isDragging ? ' dragging' : ''}${confirming ? ' confirming' : ''}`} data-card-id={card.id}
       {...dragAttributes} {...listeners} onKeyDown={onKeyDown} onClick={onClick}
-      title={draggable ? 'クリックで編集・ドラッグで移動' : 'クリックで編集'}>
+      title={confirming ? undefined : draggable ? 'クリックで編集・ドラッグで移動' : 'クリックで編集'}>
       <div className="card-top">
         <div className="card-title">{card.title}</div>
         {/* × の上でマウスを押してもドラッグを始めない */}
-        <button type="button" className="icon-btn" aria-label={`カード「${card.title}」を削除`} title="削除"
-          onPointerDown={(e) => e.stopPropagation()} onClick={onDelete}>×</button>
+        <button ref={deleteButton} type="button" className="icon-btn" aria-label={`カード「${card.title}」を削除`}
+          title="削除" onPointerDown={(e) => e.stopPropagation()} onClick={() => setConfirming(true)}>×</button>
       </div>
+      {confirming && (
+        <div className="confirm" role="alert" onKeyDown={(e) => e.key === 'Escape' && cancelDelete()}>
+          <span>カード「{card.title}」を削除しますか？</span>
+          <button type="button" className="danger-btn" autoFocus onClick={onDelete}>削除する</button>
+          <button type="button" className="ghost-btn" onClick={cancelDelete}>キャンセル</button>
+        </div>
+      )}
       <div className="card-meta">
         <PriorityPicker name={`prio-${card.id}`} value={card.priority}
           onChange={(priority) => onUpdate({ priority })} />
