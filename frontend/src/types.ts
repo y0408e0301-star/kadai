@@ -35,6 +35,9 @@ export type CardCreateRequest = {
   due: string | null
 }
 
+// PATCH /api/cards/{id} で送る JSON。送った項目だけ変わる。due は null で期限を消す
+export type CardUpdateRequest = Partial<CardCreateRequest>
+
 // 検索フォームの値。空文字は「指定なし」
 export type SearchConditions = {
   q: string

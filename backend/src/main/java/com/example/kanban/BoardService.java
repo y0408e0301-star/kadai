@@ -171,6 +171,26 @@ public class BoardService {
 		}
 	}
 
+	// 各リストのカードを、期限が近い順に並べて position を振り直す（F-09）。
+	// 期限なしは最後、同じ期限なら優先順位の高い順、それも同じなら今の順のまま
+	public void sortCardsByDue() {
+		Comparator<Card> byDue = Comparator.comparing(Card::getDue, Comparator.nullsLast(Comparator.naturalOrder()))
+			.thenComparingInt(c -> priorityRank(c.getPriority()))
+			.thenComparingInt(Card::getPosition);
+		cardRepository.findAllByOrderByPositionAsc().stream()
+			.collect(Collectors.groupingBy(Card::getListId))
+			.values()
+			.forEach(cards -> renumber(cards.stream().sorted(byDue).toList()));
+	}
+
+	private static int priorityRank(String priority) {
+		return switch (priority) {
+			case "high" -> 0;
+			case "low" -> 2;
+			default -> 1;
+		};
+	}
+
 	private void renumber(List<Card> cards) {
 		for (int i = 0; i < cards.size(); i++) {
 			cards.get(i).setPosition(i);

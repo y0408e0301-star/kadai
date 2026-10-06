@@ -1,12 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
+import PriorityPicker from './PriorityPicker'
 import type { CardCreateRequest, Priority } from './types'
-
-const priorities: { value: Priority; label: string }[] = [
-  { value: 'high', label: '高' },
-  { value: 'mid', label: '中' },
-  { value: 'low', label: '低' },
-]
 
 type Props = {
   listId: number
@@ -76,15 +71,7 @@ function AddCardForm({ listId, onAdd }: Props) {
       </div>
       <div className="field-row">
         <span className="field-label">優先順位</span>
-        <span className="prio-group" role="radiogroup" aria-label="優先順位">
-          {priorities.map((p) => (
-            <label key={p.value} className={`prio-opt opt-${p.value}`}>
-              <input type="radio" name={`new-prio-${listId}`} value={p.value} checked={priority === p.value}
-                onChange={() => setPriority(p.value)} />
-              <span>{p.label}</span>
-            </label>
-          ))}
-        </span>
+        <PriorityPicker name={`new-prio-${listId}`} value={priority} onChange={setPriority} />
       </div>
       <div className="composer-row">
         <button type="submit" className="primary-btn" disabled={saving}>カードを追加</button>
