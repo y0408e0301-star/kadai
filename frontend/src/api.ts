@@ -1,5 +1,5 @@
 import type {
-  Board, Card, CardCreateRequest, CardDetail, CardSearchResult, CardUpdateRequest, SearchConditions,
+  Board, Card, CardCreateRequest, CardDetail, CardSearchResult, CardUpdateRequest, List, SearchConditions,
 } from './types'
 
 // GET して JSON を返す。200 番台以外はエラーにする
@@ -24,6 +24,21 @@ async function send(method: string, url: string, body?: unknown): Promise<Respon
 async function sendJson<T>(method: string, url: string, body?: unknown): Promise<T> {
   const res = await send(method, url, body)
   return res.json() as Promise<T>
+}
+
+// リストを右端に追加し、保存されたリスト（id 付き、カードは空）を返す
+export function createList(title: string): Promise<List> {
+  return sendJson<List>('POST', '/api/lists', { title })
+}
+
+// リストの名前を変える
+export async function renameList(id: number, title: string): Promise<void> {
+  await send('PATCH', `/api/lists/${id}`, { title })
+}
+
+// リストを削除する。中のカードも一緒に消える
+export async function deleteList(id: number): Promise<void> {
+  await send('DELETE', `/api/lists/${id}`)
 }
 
 // カードをリストの末尾に追加し、保存されたカード（id 付き）を返す
