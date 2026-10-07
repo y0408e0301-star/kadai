@@ -160,6 +160,42 @@ test('別のリストへドラッグすると移動が保存される（「完�
   await expect(doneColumn.locator('.count')).toHaveText('2')
 })
 
+test('キーボードの「移動」ボタンで別のリストへ移動でき、タイトルの Enter で編集欄が開く', async ({ page, request }) => {
+  const from = await createList(request, 'キー移動元')
+  const to = await createList(request, 'キー移動先')
+  const id = await createCard(request, from.id, 'キーで動かすカード')
+
+  await page.goto('/')
+  const card = cardEl(page, id)
+  const handle = card.getByRole('button', { name: 'カード「キーで動かすカード」を移動', exact: true })
+
+  // 「移動」ボタンは × と同じくふだんは隠れていて、タイトルから Tab で進むと出る
+  await card.getByRole('button', { name: 'キーで動かすカード', exact: true }).focus()
+  await page.keyboard.press('Tab')
+  await expect(handle).toBeFocused()
+
+  // つかむ → 右のリストへ → 置く
+  const saved = waitForApi(page, 'PUT', `/api/cards/${id}/move`)
+  // dnd-kit がつかんだ状態になってから矢印を押す（速すぎると矢印が効かない）
+  await page.keyboard.press('Space')
+  await expect(handle).toHaveAttribute('aria-pressed', 'true')
+  await page.keyboard.press('ArrowRight')
+  await expect(listColumn(page, to.title).locator(`[data-card-id="${id}"]`)).toBeVisible()
+  await page.keyboard.press('Space')
+  expect((await saved).status()).toBe(204)
+  expect(await cardIds(request, from.id)).toEqual([])
+  expect(await cardIds(request, to.id)).toEqual([id])
+
+  // タイトルにフォーカスして Enter で編集欄が開く。ラジオボタンの Space はドラッグにならない
+  await card.getByRole('button', { name: 'キーで動かすカード', exact: true }).press('Enter')
+  await expect(page.getByRole('textbox', { name: 'タイトル', exact: true })).toBeFocused()
+  await page.keyboard.press('Escape')
+  const prio = waitForApi(page, 'PATCH', `/api/cards/${id}`)
+  await cardEl(page, id).getByRole('radio', { name: '高' }).press('Space')
+  expect((await prio).status()).toBe(200)
+  expect(await cardIds(request, to.id)).toEqual([id])
+})
+
 test('カード上のラジオボタンで優先順位を切り替えると保存される', async ({ page, request }) => {
   const list = await createList(request, '優先順位')
   const id = await createCard(request, list.id, '資料を読む')
@@ -269,6 +305,21 @@ test('保存に失敗したら、そのことを出して DB の状態に表示�
   expect((await cardOf(request, id)).priority).toBe('mid')
 })
 
+test('API が返したエラーの理由を画面に出す', async ({ page, request }) => {
+  const list = await createList(request, 'エラーの理由')
+
+  await page.goto('/')
+  const column = listColumn(page, list.title)
+  await column.getByRole('button', { name: '＋ カードを追加' }).click()
+  // 画面を開いたあとで、別の画面からリストが消されたことにする
+  await request.delete(`/api/lists/${list.id}`)
+
+  await column.getByRole('textbox', { name: 'カードのタイトル' }).fill('消えたリストへのカード')
+  await column.getByRole('button', { name: 'カードを追加', exact: true }).click()
+  await expect(column.locator('.form-error'))
+    .toHaveText(`追加できませんでした（リストが見つかりません（id: ${list.id}））`)
+})
+
 test('カード右上の × → 確認の「削除する」で削除すると DB からも消え、再読み込みしても出ない', async ({ page, request }) => {
   const list = await createList(request, '削除')
   const keep = await createCard(request, list.id, '残すカード')
@@ -286,7 +337,7 @@ test('カード右上の × → 確認の「削除する」で削除すると DB
 
   // × を押しても編集欄は開かず、確認が出る
   await expect(page.getByRole('textbox', { name: 'タイトル', exact: true })).toHaveCount(0)
-  const confirm = cardEl(page, remove).getByRole('alert')
+  const confirm = cardEl(page, remove).getByRole('alertdialog')
   await expect(confirm).toHaveText(/カード「消すカード」を削除しますか？/)
   const saved = waitForApi(page, 'DELETE', `/api/cards/${remove}`)
   await confirm.getByRole('button', { name: '削除する' }).click()
@@ -313,7 +364,7 @@ test('確認で「キャンセル」か Esc を押すと削除されない', asy
   await page.goto('/')
   const card = cardEl(page, id)
   const button = page.getByRole('button', { name: 'カード「残したいカード」を削除', exact: true })
-  const confirm = card.getByRole('alert')
+  const confirm = card.getByRole('alertdialog')
 
   // キャンセルで閉じると、× にフォーカスが戻る
   await card.hover()

@@ -23,11 +23,16 @@ function App() {
   const [saving, setSaving] = useState(0)
   const [saveStatus, setSaveStatus] = useState<SaveStatus | null>(null)
 
-  // 起動時にボード全体を API（PostgreSQL）から読む
+  // 起動時にボード全体を API（PostgreSQL）から読む。画面を閉じたら（StrictMode の 2 回目の実行の前も）
+  // 読み込みをやめ、遅れて返ってきた結果で上書きしないようにする
   useEffect(() => {
-    fetchBoard()
+    const controller = new AbortController()
+    fetchBoard(controller.signal)
       .then(setBoard)
-      .catch((e: unknown) => setError(String(e)))
+      .catch((e: unknown) => {
+        if (!controller.signal.aborted) setError(String(e))
+      })
+    return () => controller.abort()
   }, [])
 
   const search = (c: SearchConditions) => {
@@ -149,8 +154,8 @@ function App() {
         onRenameList={results === null ? changeListTitle : undefined}
         onDeleteList={results === null ? removeList : undefined} />
       <footer>
-        カードはドラッグ（またはフォーカスして Space → 矢印 → Space）で移動できます。「完了」へ動かすと完了です。
-        クリック（または Enter）でタイトル・期限・優先順位を編集でき、右上の × で削除できます（確認が出ます）。
+        カードはドラッグ（キーボードでは右上の ⠿ で Space → 矢印 → Space）で移動できます。「完了」へ動かすと完了です。
+        クリック（キーボードではタイトルで Enter）でタイトル・期限・優先順位を編集でき、右上の × で削除できます（確認が出ます）。
         リスト名はクリックで変更でき、リストの × で中のカードごと削除できます。右端の「＋ リストを追加」でリストを足せます。
       </footer>
     </>

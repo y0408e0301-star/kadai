@@ -2,22 +2,48 @@ import type {
   Board, Card, CardCreateRequest, CardDetail, CardSearchResult, CardUpdateRequest, List, SearchConditions,
 } from './types'
 
-// GET して JSON を返す。200 番台以外はエラーにする
-async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+// API がエラーを返したとき。message は画面にそのまま出せる理由
+export class ApiError extends Error {
+  readonly status: number
+
+  constructor(status: number, message: string) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+
+  // String(err) で「Error: …」ではなく理由だけが出るようにする
+  override toString(): string {
+    return this.message
+  }
+}
+
+// 200 番台以外なら ApiError にする。理由は API が返す Problem Details（RFC 9457）の detail を使い、
+// 読めなければ「HTTP 500」のようにステータスだけを出す
+export async function ensureOk(res: Response): Promise<Response> {
+  if (res.ok) return res
+  let detail: unknown
+  try {
+    detail = ((await res.json()) as { detail?: unknown }).detail
+  } catch {
+    detail = undefined
+  }
+  throw new ApiError(res.status, typeof detail === 'string' && detail ? detail : `HTTP ${res.status}`)
+}
+
+// GET して JSON を返す。200 番台以外はエラーにする。signal で途中でやめられる
+async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
+  const res = await ensureOk(await fetch(url, { signal }))
   return res.json() as Promise<T>
 }
 
 // JSON を送る（本文は省略できる）。200 番台以外はエラーにする
 async function send(method: string, url: string, body?: unknown): Promise<Response> {
-  const res = await fetch(url, {
+  return ensureOk(await fetch(url, {
     method,
     headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
-  })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return res
+  }))
 }
 
 // JSON を送って、返ってきた JSON を返す
@@ -66,8 +92,8 @@ export function sortCardsByDue(): Promise<Board> {
   return sendJson<Board>('POST', '/api/board/sort-by-due')
 }
 
-export function fetchBoard(): Promise<Board> {
-  return getJson<Board>('/api/board')
+export function fetchBoard(signal?: AbortSignal): Promise<Board> {
+  return getJson<Board>('/api/board', signal)
 }
 
 // 空でない条件だけを付けて検索する。結果は画面と同じ順（リストの順 → リストの中の順）
