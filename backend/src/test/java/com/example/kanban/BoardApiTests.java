@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
@@ -20,9 +21,10 @@ import com.jayway.jsonpath.JsonPath;
 
 import jakarta.persistence.EntityManager;
 
-// API を通して DB（開発用 PostgreSQL）を読み書きするテスト。
-// テストごとにトランザクションを巻き戻すので、DB の中身は変わらない
+// API を通して DB を読み書きするテスト。DB はテスト用に Docker で起動する（TestcontainersConfiguration）。
+// テストごとにトランザクションを巻き戻すので、テストどうしは影響しない
 @SpringBootTest
+@Import(TestcontainersConfiguration.class)
 @AutoConfigureMockMvc
 @Transactional
 class BoardApiTests {
@@ -225,6 +227,36 @@ class BoardApiTests {
 					+ ",\"listTitle\":\"取得\",\"title\":\"読むカード\",\"priority\":\"low\",\"due\":\"2026-11-01\"}");
 
 		assertThat(mvc.get().uri("/api/cards/{id}", 999999).exchange()).hasStatus(HttpStatus.NOT_FOUND);
+	}
+
+	@Test
+	void エラーは_Problem_Details_の形で理由を返す() {
+		// 見つからない
+		assertThat(mvc.get().uri("/api/cards/{id}", 999999).exchange()).hasStatus(HttpStatus.NOT_FOUND)
+			.hasContentType(MediaType.APPLICATION_PROBLEM_JSON)
+			.bodyJson()
+			.isLenientlyEqualTo(
+					"{\"status\":404,\"detail\":\"カードが見つかりません（id: 999999）\",\"instance\":\"/api/cards/999999\"}");
+
+		// 本文の入力チェック違反。どの項目かが detail に入る
+		MvcTestResult blank = send(mvc.post().uri("/api/lists"), "{\"title\":\" \"}");
+		assertThat(blank).hasStatus(HttpStatus.BAD_REQUEST).hasContentType(MediaType.APPLICATION_PROBLEM_JSON);
+		assertThat((String) JsonPath.read(body(blank), "$.detail")).startsWith("入力が正しくありません（title: ");
+
+		// JSON の値がおかしい（優先順位・日付）
+		long listId = createList("エラー");
+		assertThat(send(mvc.post().uri("/api/lists/{id}/cards", listId), "{\"title\":\"a\",\"priority\":\"top\"}"))
+			.hasStatus(HttpStatus.BAD_REQUEST)
+			.bodyJson()
+			.extractingPath("$.detail")
+			.asString()
+			.startsWith("送られた JSON を読めません");
+
+		// クエリパラメーターの値がおかしい
+		assertThat(mvc.get().uri("/api/cards?priority=top").exchange()).hasStatus(HttpStatus.BAD_REQUEST)
+			.bodyJson()
+			.extractingPath("$.detail")
+			.isEqualTo("パラメーター priority の値が正しくありません: top");
 	}
 
 	private MvcTestResult send(MockMvcTester.MockMvcRequestBuilder request, String json) {

@@ -30,8 +30,8 @@ public class CardController {
 
 	// 追加：{"title": "レポートを書く", "priority": "high", "due": "2026-10-10"}
 	// （priority と due は省略できる）
-	record CardCreateRequest(@NotBlank @Size(max = 200) String title, @Pattern(regexp = "high|mid|low") String priority,
-			LocalDate due) {
+	// priority が high・mid・low 以外なら JSON を読めずに 400 になる（Priority.from）
+	record CardCreateRequest(@NotBlank @Size(max = 200) String title, Priority priority, LocalDate due) {
 	}
 
 	// 変更：送った項目だけ変わる。{"due": null} を送ると期限を消す
@@ -42,8 +42,7 @@ public class CardController {
 		@Size(max = 200)
 		private String title;
 
-		@Pattern(regexp = "high|mid|low")
-		private String priority;
+		private Priority priority;
 
 		private LocalDate due;
 
@@ -54,7 +53,7 @@ public class CardController {
 			this.title = title;
 		}
 
-		public void setPriority(String priority) {
+		public void setPriority(Priority priority) {
 			this.priority = priority;
 		}
 
@@ -83,8 +82,7 @@ public class CardController {
 	// 条件はどれも省略でき、指定したものをすべて満たすカードを返す。何も指定しなければ全カード
 	@GetMapping("/api/cards")
 	public CardSearchResponse search(@RequestParam(required = false) @Size(max = 200) String q,
-			@RequestParam(required = false) Long listId,
-			@RequestParam(required = false) @Pattern(regexp = "high|mid|low") String priority,
+			@RequestParam(required = false) Long listId, @RequestParam(required = false) Priority priority,
 			@RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate dueFrom,
 			@RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate dueTo) {
 		return new CardSearchResponse(boardService.searchCards(q, listId, priority, dueFrom, dueTo));
