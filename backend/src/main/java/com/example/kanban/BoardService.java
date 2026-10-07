@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -22,6 +23,7 @@ import jakarta.persistence.criteria.Predicate;
 public class BoardService {
 
 	private final TaskListRepository listRepository;
+
 	private final CardRepository cardRepository;
 
 	public BoardService(TaskListRepository listRepository, CardRepository cardRepository) {
@@ -32,11 +34,13 @@ public class BoardService {
 	@Transactional(readOnly = true)
 	public List<ListResponse> getBoard() {
 		// カードを position 順のまま list_id ごとに分ける
-		Map<Long, List<CardResponse>> cardsByList = cardRepository.findAllByOrderByPositionAsc().stream()
+		Map<Long, List<CardResponse>> cardsByList = cardRepository.findAllByOrderByPositionAsc()
+			.stream()
 			.collect(Collectors.groupingBy(Card::getListId,
 					Collectors.mapping(CardResponse::from, Collectors.toList())));
 
-		return listRepository.findAllByOrderByPositionAsc().stream()
+		return listRepository.findAllByOrderByPositionAsc()
+			.stream()
 			.map(l -> ListResponse.from(l, cardsByList.getOrDefault(l.getId(), List.of())))
 			.toList();
 	}
@@ -51,10 +55,12 @@ public class BoardService {
 		if (listId != null) {
 			findList(listId);
 		}
-		Map<Long, TaskList> lists = listRepository.findAll().stream()
+		Map<Long, TaskList> lists = listRepository.findAll()
+			.stream()
 			.collect(Collectors.toMap(TaskList::getId, Function.identity()));
 
-		return cardRepository.findAll(cardMatches(keyword, listId, priority, dueFrom, dueTo)).stream()
+		return cardRepository.findAll(cardMatches(keyword, listId, priority, dueFrom, dueTo))
+			.stream()
 			.sorted(Comparator.comparingInt((Card c) -> lists.get(c.getListId()).getPosition())
 				.thenComparingInt(Card::getPosition))
 			.map(c -> CardDetailResponse.from(c, lists.get(c.getListId())))
@@ -74,7 +80,7 @@ public class BoardService {
 			List<Predicate> conditions = new ArrayList<>();
 			if (keyword != null && !keyword.isBlank()) {
 				// タイトルの部分一致。大文字・小文字は区別しない
-				String pattern = "%" + escapeLike(keyword.strip().toLowerCase()) + "%";
+				String pattern = "%" + escapeLike(keyword.strip().toLowerCase(Locale.ROOT)) + "%";
 				conditions.add(cb.like(cb.lower(root.<String>get("title")), pattern, '\\'));
 			}
 			if (listId != null) {
@@ -108,7 +114,8 @@ public class BoardService {
 	public ListResponse renameList(Long id, String title) {
 		TaskList list = findList(id);
 		list.setTitle(title);
-		List<CardResponse> cards = cardRepository.findByListIdOrderByPositionAsc(id).stream()
+		List<CardResponse> cards = cardRepository.findByListIdOrderByPositionAsc(id)
+			.stream()
 			.map(CardResponse::from)
 			.toList();
 		return ListResponse.from(list, cards);
@@ -165,7 +172,8 @@ public class BoardService {
 		renumber(destination);
 
 		if (!fromListId.equals(toListId)) {
-			renumber(cardRepository.findByListIdOrderByPositionAsc(fromListId).stream()
+			renumber(cardRepository.findByListIdOrderByPositionAsc(fromListId)
+				.stream()
 				.filter(c -> !c.getId().equals(id))
 				.toList());
 		}
@@ -177,7 +185,8 @@ public class BoardService {
 		Comparator<Card> byDue = Comparator.comparing(Card::getDue, Comparator.nullsLast(Comparator.naturalOrder()))
 			.thenComparingInt(c -> priorityRank(c.getPriority()))
 			.thenComparingInt(Card::getPosition);
-		cardRepository.findAllByOrderByPositionAsc().stream()
+		cardRepository.findAllByOrderByPositionAsc()
+			.stream()
 			.collect(Collectors.groupingBy(Card::getListId))
 			.values()
 			.forEach(cards -> renumber(cards.stream().sorted(byDue).toList()));
