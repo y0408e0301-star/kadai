@@ -54,6 +54,17 @@ header h1 { font-size: 18px; font-weight: 700; margin: 0; }
 .list-head { display: flex; align-items: center; gap: 6px; padding: 10px 12px 6px 16px; }
 .list-title { flex: 1; min-width: 0; font-size: 14px; margin: 0; overflow-wrap: anywhere; }
 .count { font-family: var(--font-mono); font-size: 11px; color: var(--quiet); }
+/* リスト名：クリックで名前を変更（F-01） */
+.list-title-btn {
+  font: inherit; font-size: 14px; font-weight: 700; color: var(--ink); text-align: left; background: none;
+  border: 0; border-radius: 4px; padding: 4px; margin-left: -4px; cursor: pointer;
+}
+.list-title-btn:hover { background: var(--accent-soft); }
+.list-title-input { flex: 1; min-width: 0; font-weight: 700; font-size: 14px; padding: 3px 6px; }
+.list-head:hover .icon-btn, .list-head:focus-within .icon-btn, .list-head.confirming .icon-btn { visibility: visible; }
+.list-confirm { margin: 0 10px 6px; }
+/* ボードの右端の「＋ リストを追加」（モックと同じ点線の枠） */
+.add-list { flex: 0 0 272px; border: 1.5px dashed var(--edge); border-radius: 10px; padding: 10px; }
 
 /* min-height：カードが 0 枚のリストにもドロップできるように */
 .cards { display: flex; flex-direction: column; gap: 8px; padding: 2px 10px 4px; min-height: 40px; overflow-y: auto; }

@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
-import { createCard, deleteCard, fetchBoard, moveCard, searchCards, sortCardsByDue, updateCard } from './api'
+import {
+  createCard, createList, deleteCard, deleteList, fetchBoard, moveCard, renameList, searchCards, sortCardsByDue,
+  updateCard,
+} from './api'
 import BoardView from './BoardView'
 import SearchForm from './SearchForm'
 import type { Board, Card, CardCreateRequest, CardDetail, CardUpdateRequest, List, SearchConditions } from './types'
@@ -47,6 +50,23 @@ function App() {
         if (conditions) searchCards(conditions).then(setResults).catch(() => setResults(null))
       })
       .finally(() => setSaving((n) => n - 1))
+  }
+
+  // API に保存できたら、返ってきたリスト（id 付き）を右端に足す
+  const addList = async (title: string) => {
+    const created = await createList(title)
+    setBoard((b) => b && { lists: [...b.lists, created] })
+  }
+
+  const changeListTitle = (listId: number, title: string) => {
+    setBoard((b) => b && { lists: b.lists.map((l) => (l.id === listId ? { ...l, title } : l)) })
+    save(() => renameList(listId, title))
+  }
+
+  // リストの削除。中のカードも消える（DB の ON DELETE CASCADE）
+  const removeList = (listId: number) => {
+    setBoard((b) => b && { lists: b.lists.filter((l) => l.id !== listId) })
+    save(() => deleteList(listId))
   }
 
   // API に保存できたら、返ってきたカード（id 付き）をそのリストの末尾に足す
@@ -124,10 +144,14 @@ function App() {
       {results !== null && <p className="search-status">検索結果 {results.length} 件</p>}
       <BoardView lists={lists} onUpdateCard={editCard} onDeleteCard={removeCard}
         onAddCard={results === null ? addCard : undefined}
-        onMoveCard={results === null ? dropCard : undefined} />
+        onMoveCard={results === null ? dropCard : undefined}
+        onAddList={results === null ? addList : undefined}
+        onRenameList={results === null ? changeListTitle : undefined}
+        onDeleteList={results === null ? removeList : undefined} />
       <footer>
         カードはドラッグ（またはフォーカスして Space → 矢印 → Space）で移動できます。「完了」へ動かすと完了です。
         クリック（または Enter）でタイトル・期限・優先順位を編集でき、右上の × で削除できます（確認が出ます）。
+        リスト名はクリックで変更でき、リストの × で中のカードごと削除できます。右端の「＋ リストを追加」でリストを足せます。
       </footer>
     </>
   )

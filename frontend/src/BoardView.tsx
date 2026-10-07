@@ -5,8 +5,10 @@ import {
 import type { DragEndEvent, DragOverEvent, UniqueIdentifier } from '@dnd-kit/core'
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import AddCardForm from './AddCardForm'
+import AddListForm from './AddListForm'
 import CardView from './CardView'
 import { cardIdOf, cardKey, listKey } from './dndKeys'
+import ListHeader from './ListHeader'
 import type { CardCreateRequest, CardUpdateRequest, List } from './types'
 
 // id（カードでもリストでも）が入っているリストを探す
@@ -24,10 +26,16 @@ type Props = {
   // 渡したときだけカードをドラッグで移動できる（検索結果の表示中は渡さない）。
   // position は移動先リストでの 0 始まりの位置
   onMoveCard?: (cardId: number, listId: number, position: number) => void
+  // 渡したときだけリストの追加・名前変更・削除ができる（検索結果の表示中は渡さない）
+  onAddList?: (title: string) => Promise<void>
+  onRenameList?: (listId: number, title: string) => void
+  onDeleteList?: (listId: number) => void
 }
 
 // リストを列として並べる。通常のボードと検索結果の両方で使う
-function BoardView({ lists, onAddCard, onUpdateCard, onDeleteCard, onMoveCard }: Props) {
+function BoardView({
+  lists, onAddCard, onUpdateCard, onDeleteCard, onMoveCard, onAddList, onRenameList, onDeleteList,
+}: Props) {
   // ドラッグ中の並び。別のリストの上に来たら、カードをそのリストへ移して見せる。ドラッグしていないときは null
   const [draft, setDraft] = useState<List[] | null>(null)
   const shown = draft ?? lists
@@ -85,8 +93,11 @@ function BoardView({ lists, onAddCard, onUpdateCard, onDeleteCard, onMoveCard }:
         {shown.map((list) => (
           <ListColumn key={list.id} list={list} draggable={onMoveCard !== undefined} onUpdateCard={onUpdateCard}
             onDeleteCard={onDeleteCard}
-            onAddCard={onAddCard && ((card) => onAddCard(list.id, card))} />
+            onAddCard={onAddCard && ((card) => onAddCard(list.id, card))}
+            onRename={onRenameList && ((title) => onRenameList(list.id, title))}
+            onDelete={onDeleteList && (() => onDeleteList(list.id))} />
         ))}
+        {onAddList && <AddListForm onAdd={onAddList} />}
       </main>
     </DndContext>
   )
@@ -98,17 +109,16 @@ type ListProps = {
   onUpdateCard: (cardId: number, changes: CardUpdateRequest) => void
   onDeleteCard: (cardId: number) => void
   onAddCard?: (card: CardCreateRequest) => Promise<void>
+  onRename?: (title: string) => void
+  onDelete?: () => void
 }
 
 // リスト 1 列。カードが 0 枚でもドロップできるように、カードの入れ物をドロップ先にする
-function ListColumn({ list, draggable, onUpdateCard, onDeleteCard, onAddCard }: ListProps) {
+function ListColumn({ list, draggable, onUpdateCard, onDeleteCard, onAddCard, onRename, onDelete }: ListProps) {
   const { setNodeRef } = useDroppable({ id: listKey(list.id), disabled: !draggable })
   return (
     <section className="list" data-list-id={list.id} aria-label={list.title}>
-      <div className="list-head">
-        <h2 className="list-title">{list.title}</h2>
-        <span className="count">{list.cards.length}</span>
-      </div>
+      <ListHeader list={list} onRename={onRename} onDelete={onDelete} />
       <SortableContext id={listKey(list.id)} items={list.cards.map((c) => cardKey(c.id))}
         strategy={verticalListSortingStrategy}>
         <div ref={setNodeRef} className="cards">
