@@ -83,6 +83,9 @@ function CardView({ card, draggable, onUpdate, onDelete }: Props) {
 
   const due = dueLabel(card.due)
   return (
+    // カード全体をクリック・キー操作の対象にしている（ドラッグできるときは dnd-kit が role="button" を付ける）。
+    // 中に × やラジオボタンがあり、作りを変えるときに見直す
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <article ref={setNodeRef} style={style} className={`card${isDragging ? ' dragging' : ''}${confirming ? ' confirming' : ''}`} data-card-id={card.id}
       {...dragAttributes} {...listeners} onKeyDown={onKeyDown} onClick={onClick}
       title={confirming ? undefined : draggable ? 'クリックで編集・ドラッグで移動' : 'クリックで編集'}>
@@ -93,6 +96,8 @@ function CardView({ card, draggable, onUpdate, onDelete }: Props) {
           title="削除" onPointerDown={(e) => e.stopPropagation()} onClick={() => setConfirming(true)}>×</button>
       </div>
       {confirming && (
+        // 確認の中のどのボタンにフォーカスがあっても Esc で閉じられるようにする
+        // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
         <div className="confirm" role="alert" onKeyDown={(e) => e.key === 'Escape' && cancelDelete()}>
           <span>カード「{card.title}」を削除しますか？</span>
           <button type="button" className="danger-btn" autoFocus onClick={onDelete}>削除する</button>

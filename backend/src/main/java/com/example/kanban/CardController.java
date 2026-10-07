@@ -28,10 +28,9 @@ import jakarta.validation.constraints.Size;
 @RestController
 public class CardController {
 
-	// 追加：{"title": "レポートを書く", "priority": "high", "due": "2026-10-10"}（priority と due は省略できる）
-	record CardCreateRequest(
-			@NotBlank @Size(max = 200) String title,
-			@Pattern(regexp = "high|mid|low") String priority,
+	// 追加：{"title": "レポートを書く", "priority": "high", "due": "2026-10-10"}
+	// （priority と due は省略できる）
+	record CardCreateRequest(@NotBlank @Size(max = 200) String title, @Pattern(regexp = "high|mid|low") String priority,
 			LocalDate due) {
 	}
 
@@ -83,8 +82,7 @@ public class CardController {
 	// 検索：GET /api/cards?q=レポート&listId=1&priority=high&dueFrom=2026-10-01&dueTo=2026-10-31
 	// 条件はどれも省略でき、指定したものをすべて満たすカードを返す。何も指定しなければ全カード
 	@GetMapping("/api/cards")
-	public CardSearchResponse search(
-			@RequestParam(required = false) @Size(max = 200) String q,
+	public CardSearchResponse search(@RequestParam(required = false) @Size(max = 200) String q,
 			@RequestParam(required = false) Long listId,
 			@RequestParam(required = false) @Pattern(regexp = "high|mid|low") String priority,
 			@RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate dueFrom,

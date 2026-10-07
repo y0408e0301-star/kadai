@@ -28,6 +28,8 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		<spring-javaformat.version>0.0.48</spring-javaformat.version>
+		<spotbugs-maven-plugin.version>4.10.4.1</spotbugs-maven-plugin.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -83,6 +85,50 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+			<!-- コンパイラーの警告（非推奨 API・未検査の型変換など）をすべて表示する -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<showWarnings>true</showWarnings>
+					<compilerArgs>
+						<arg>-Xlint:all,-processing,-serial</arg>
+					</compilerArgs>
+				</configuration>
+			</plugin>
+			<!-- 書式チェック：Spring Boot 本体と同じ書式（タブでインデント）になっているか。
+				 mvnw verify（validate フェーズ）で確かめる。直すときは mvnw spring-javaformat:apply -->
+			<plugin>
+				<groupId>io.spring.javaformat</groupId>
+				<artifactId>spring-javaformat-maven-plugin</artifactId>
+				<version>${spring-javaformat.version}</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>validate</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<!-- 静的解析：null の扱いや equals の誤りなど、バグになりやすい書き方を見つける。
+				 mvnw verify（verify フェーズ）で確かめる。除外は spotbugs-exclude.xml -->
+			<plugin>
+				<groupId>com.github.spotbugs</groupId>
+				<artifactId>spotbugs-maven-plugin</artifactId>
+				<version>${spotbugs-maven-plugin.version}</version>
+				<configuration>
+					<effort>Max</effort>
+					<threshold>Low</threshold>
+					<excludeFilterFile>spotbugs-exclude.xml</excludeFilterFile>
+				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>

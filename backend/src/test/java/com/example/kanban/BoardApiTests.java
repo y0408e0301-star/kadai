@@ -38,9 +38,10 @@ class BoardApiTests {
 		long id = createList("買い物");
 		assertThat(boardJson()).contains("\"title\":\"買い物\"");
 
-		assertThat(send(mvc.patch().uri("/api/lists/{id}", id), "{\"title\":\"買い物リスト\"}"))
-			.hasStatusOk()
-			.bodyJson().extractingPath("$.title").isEqualTo("買い物リスト");
+		assertThat(send(mvc.patch().uri("/api/lists/{id}", id), "{\"title\":\"買い物リスト\"}")).hasStatusOk()
+			.bodyJson()
+			.extractingPath("$.title")
+			.isEqualTo("買い物リスト");
 
 		assertThat(mvc.delete().uri("/api/lists/{id}", id)).hasStatus(HttpStatus.NO_CONTENT);
 		assertThat(boardJson()).doesNotContain("買い物リスト");
@@ -96,13 +97,12 @@ class BoardApiTests {
 		long cardId = idOf(created);
 
 		// 送った項目だけ変わる
-		assertThat(send(mvc.patch().uri("/api/cards/{id}", cardId), "{\"title\":\"レポートを書く\"}"))
-			.bodyJson().isLenientlyEqualTo(
-					"{\"title\":\"レポートを書く\",\"priority\":\"high\",\"due\":\"2026-10-10\"}");
+		assertThat(send(mvc.patch().uri("/api/cards/{id}", cardId), "{\"title\":\"レポートを書く\"}")).bodyJson()
+			.isLenientlyEqualTo("{\"title\":\"レポートを書く\",\"priority\":\"high\",\"due\":\"2026-10-10\"}");
 
 		// due に null を送ると期限が消える
-		assertThat(send(mvc.patch().uri("/api/cards/{id}", cardId), "{\"due\":null,\"priority\":\"low\"}"))
-			.bodyJson().isLenientlyEqualTo("{\"title\":\"レポートを書く\",\"priority\":\"low\",\"due\":null}");
+		assertThat(send(mvc.patch().uri("/api/cards/{id}", cardId), "{\"due\":null,\"priority\":\"low\"}")).bodyJson()
+			.isLenientlyEqualTo("{\"title\":\"レポートを書く\",\"priority\":\"low\",\"due\":null}");
 
 		assertThat(send(mvc.patch().uri("/api/cards/{id}", cardId), "{\"priority\":\"top\"}"))
 			.hasStatus(HttpStatus.BAD_REQUEST);
@@ -185,8 +185,9 @@ class BoardApiTests {
 		assertThat(searchIds("q", "%_")).containsExactly(c);
 
 		// どのリストに入っているかも返る
-		assertThat(mvc.get().uri("/api/cards").param("q", "ZZ検索 レポート").exchange())
-			.bodyJson().extractingPath("$.cards[0].listTitle").isEqualTo("検索1");
+		assertThat(mvc.get().uri("/api/cards").param("q", "ZZ検索 レポート").exchange()).bodyJson()
+			.extractingPath("$.cards[0].listTitle")
+			.isEqualTo("検索1");
 	}
 
 	@Test
@@ -218,9 +219,9 @@ class BoardApiTests {
 		long listId = createList("取得");
 		long cardId = createCard(listId, "読むカード", "low", "2026-11-01");
 
-		assertThat(mvc.get().uri("/api/cards/{id}", cardId).exchange())
-			.hasStatusOk()
-			.bodyJson().isStrictlyEqualTo("{\"id\":" + cardId + ",\"listId\":" + listId
+		assertThat(mvc.get().uri("/api/cards/{id}", cardId).exchange()).hasStatusOk()
+			.bodyJson()
+			.isStrictlyEqualTo("{\"id\":" + cardId + ",\"listId\":" + listId
 					+ ",\"listTitle\":\"取得\",\"title\":\"読むカード\",\"priority\":\"low\",\"due\":\"2026-11-01\"}");
 
 		assertThat(mvc.get().uri("/api/cards/{id}", 999999).exchange()).hasStatus(HttpStatus.NOT_FOUND);
