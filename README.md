@@ -134,7 +134,7 @@ cd backend
 
 | 対象 | コマンド（それぞれのフォルダで実行） | 内容 |
 | --- | --- | --- |
-| API サーバー | `.\mvnw.cmd test` | API を通して DB を読み書きするテスト。データベースを起動しておく。テストごとに巻き戻すので DB の中身は変わらない |
+| API サーバー | `.\mvnw.cmd test` | API を通して DB を読み書きするテスト。DB はテスト用の PostgreSQL を Docker で自動で起動する（Testcontainers）ので、Docker Desktop を動かしておく。開発用の DB は使わないので、中身は変わらない |
 | API サーバー | `.\mvnw.cmd verify` | テストに加えて、書式チェック（spring-javaformat）と静的解析（SpotBugs）。書式は `.\mvnw.cmd spring-javaformat:apply` で直せる。SpotBugs で対象外にしたものは [backend/spotbugs-exclude.xml](backend/spotbugs-exclude.xml) |
 | 画面 | `npm run lint` | oxlint でコードをチェック（設定は [frontend/.oxlintrc.json](frontend/.oxlintrc.json)）。警告が 1 つでもあれば失敗する |
 | 画面 | `npm run build` | 型チェックと本番用のビルド（`dist/` に出力） |
@@ -187,7 +187,11 @@ API サーバーは `http://localhost:8080` で動きます。リクエスト・
 | PUT | `/api/cards/{id}/move` | カードを移動 | 204 |
 | POST | `/api/board/sort-by-due` | 各リストのカードを期限順に並べ替える | 200（並べ替えたあとのボード） |
 
-入力がおかしいとき（空のタイトル、長すぎるタイトル、`high`・`mid`・`low` 以外の優先順位など）は 400、指定した id のリスト・カードがないときは 404 を返します。
+入力がおかしいとき（空のタイトル、長すぎるタイトル、`high`・`mid`・`low` 以外の優先順位など）は 400、指定した id のリスト・カードがないときは 404 を返します。エラーの本文は RFC 9457（Problem Details）の形で、`detail` に理由が日本語で入ります（画面はこれをそのまま出します）。
+
+```json
+{"title":"Not Found","status":404,"detail":"カードが見つかりません（id: 5）","instance":"/api/cards/5"}
+```
 
 ### ボード
 
@@ -310,6 +314,7 @@ curl.exe -s -X PUT http://localhost:8080/api/cards/1/move -H "Content-Type: appl
 | --- | --- |
 | API サーバーが DB につながらずに止まる | データベースが起動していない。`docker compose up -d` を実行する（Docker Desktop が起動しているかも確認） |
 | 「ポートが使われている」（`Port 8080 was already in use`、`EADDRINUSE` など） | 前に起動したサーバーが残っている。そのポートを使っているプロセスを止めてから起動し直す（PowerShell なら `Get-NetTCPConnection -LocalPort 8080` で PID を調べて `Stop-Process -Id <PID>`） |
+| `mvnw test` が「Could not find a valid Docker environment」で失敗する | Docker Desktop が起動していない。起動してからもう一度実行する（テスト用の DB を Docker で起動するため） |
 | 新しく追加した API が 404 になる | 古い API サーバーが動き続けている。止めてから起動し直す |
 | 画面に「ボードを読み込めませんでした」と出る | API サーバーが起動していない。http://localhost:8080/api/health を確認する |
 | PowerShell で日本語が文字化けする | `[Console]::OutputEncoding = [Text.Encoding]::UTF8` を実行し、`curl.exe` を使う |

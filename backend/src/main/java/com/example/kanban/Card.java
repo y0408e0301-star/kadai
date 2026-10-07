@@ -8,9 +8,12 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 // cards テーブルの 1 行
@@ -22,8 +25,10 @@ public class Card {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	@Column(name = "list_id", nullable = false)
-	private Long listId;
+	// 入っているリスト。リストの中身（名前など）は使うときに読む
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "list_id")
+	private TaskList list;
 
 	@Column(nullable = false, length = 200)
 	private String title;
@@ -31,9 +36,9 @@ public class Card {
 	@Column(nullable = false)
 	private int position;
 
-	// high・mid・low のどれか
+	// DB には high・mid・low で入る（PriorityAttributeConverter）
 	@Column(nullable = false, length = 4)
-	private String priority = "mid";
+	private Priority priority = Priority.MID;
 
 	private LocalDate due;
 
@@ -48,8 +53,8 @@ public class Card {
 	protected Card() {
 	}
 
-	public Card(Long listId, String title, int position) {
-		this.listId = listId;
+	public Card(TaskList list, String title, int position) {
+		this.list = list;
 		this.title = title;
 		this.position = position;
 	}
@@ -58,12 +63,17 @@ public class Card {
 		return id;
 	}
 
-	public Long getListId() {
-		return listId;
+	public TaskList getList() {
+		return list;
 	}
 
-	public void setListId(Long listId) {
-		this.listId = listId;
+	// リストを読まずに id だけ返す（Hibernate のプロキシは id を持っている）
+	public Long getListId() {
+		return list.getId();
+	}
+
+	public void setList(TaskList list) {
+		this.list = list;
 	}
 
 	public String getTitle() {
@@ -82,11 +92,11 @@ public class Card {
 		this.position = position;
 	}
 
-	public String getPriority() {
+	public Priority getPriority() {
 		return priority;
 	}
 
-	public void setPriority(String priority) {
+	public void setPriority(Priority priority) {
 		this.priority = priority;
 	}
 
