@@ -41,7 +41,7 @@ Trello 風のタスク管理アプリを作りながら、Java / Spring Boot / R
 | 部分 | 使っているもの |
 | --- | --- |
 | 画面 | React 19 + TypeScript + Vite、ドラッグ＆ドロップは dnd-kit、コードチェックは oxlint、E2E テストは Playwright |
-| API サーバー | Java 21 + Spring Boot 4（Web MVC・Data JPA・Validation）、ビルドは Maven（`mvnw` 同梱） |
+| API サーバー | Java 21 + Spring Boot 4（Web MVC・Data JPA・Validation）、ビルドは Maven（`mvnw` 同梱）、コードチェックは spring-javaformat・SpotBugs |
 | データベース | PostgreSQL 17（Docker）、テーブルは Flyway で作成 |
 
 ## フォルダ構成
@@ -71,6 +71,7 @@ kadai/
 ├── mock/kanban-mock.html   画面のモック
 ├── compose.yaml            開発用の PostgreSQL
 ├── .githooks/              main へのコミットなどを止める git フック
+├── .github/workflows/      GitHub Actions（コードチェックとテストの自動実行）
 ├── CONTRIBUTING.md         開発ルール
 └── CLAUDE.md               Claude Code への指示
 ```
@@ -134,9 +135,12 @@ cd backend
 | 対象 | コマンド（それぞれのフォルダで実行） | 内容 |
 | --- | --- | --- |
 | API サーバー | `.\mvnw.cmd test` | API を通して DB を読み書きするテスト。データベースを起動しておく。テストごとに巻き戻すので DB の中身は変わらない |
-| 画面 | `npm run lint` | oxlint でコードをチェック |
+| API サーバー | `.\mvnw.cmd verify` | テストに加えて、書式チェック（spring-javaformat）と静的解析（SpotBugs）。書式は `.\mvnw.cmd spring-javaformat:apply` で直せる。SpotBugs で対象外にしたものは [backend/spotbugs-exclude.xml](backend/spotbugs-exclude.xml) |
+| 画面 | `npm run lint` | oxlint でコードをチェック（設定は [frontend/.oxlintrc.json](frontend/.oxlintrc.json)）。警告が 1 つでもあれば失敗する |
 | 画面 | `npm run build` | 型チェックと本番用のビルド（`dist/` に出力） |
 | 画面 | `npm run test:e2e` | E2E テスト（下の「画面の操作が保存されるかを確かめる」） |
+
+Pull Request を作ったときと main に push したときは、GitHub Actions（[.github/workflows/ci.yml](.github/workflows/ci.yml)）が `npm run lint`・`npm run build`・`mvnw verify` を自動で実行します（E2E テストは除く）。結果は PR の「Checks」で見られます。
 
 ### 画面の操作が保存されるかを確かめる（E2E テスト）
 
