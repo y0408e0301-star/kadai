@@ -139,7 +139,7 @@ test('リストの × → 確認の「削除する」で、中のカードごと
   await column.locator('.list-head').hover()
   await button.click()
 
-  const confirm = column.getByRole('alert')
+  const confirm = column.getByRole('alertdialog')
   await expect(confirm).toHaveText(new RegExp(`「${list.title}」とカード 2 枚を削除しますか？`))
   await expect(confirm.getByRole('button', { name: '削除する' })).toBeFocused()
   const saved = waitForApi(page, 'DELETE', `/api/lists/${list.id}`)
@@ -166,7 +166,7 @@ test('リスト削除の確認で「キャンセル」か Esc を押すと削除
   await page.goto('/')
   const column = listColumn(page, list.title)
   const button = page.getByRole('button', { name: `リスト「${list.title}」を削除`, exact: true })
-  const confirm = column.getByRole('alert')
+  const confirm = column.getByRole('alertdialog')
 
   // キャンセルで閉じると、× にフォーカスが戻る
   await column.locator('.list-head').hover()

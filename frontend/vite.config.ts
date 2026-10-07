@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
@@ -9,5 +10,9 @@ export default defineConfig({
     proxy: {
       '/api': 'http://localhost:8080',
     },
+  },
+  // ユニットテスト（npm test）。e2e/ は Playwright のテストなので含めない
+  test: {
+    include: ['src/**/*.test.ts'],
   },
 })

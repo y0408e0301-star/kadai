@@ -40,7 +40,7 @@ Trello 風のタスク管理アプリを作りながら、Java / Spring Boot / R
 
 | 部分 | 使っているもの |
 | --- | --- |
-| 画面 | React 19 + TypeScript + Vite、ドラッグ＆ドロップは dnd-kit、コードチェックは oxlint、E2E テストは Playwright |
+| 画面 | React 19 + TypeScript + Vite、ドラッグ＆ドロップは dnd-kit、コードチェックは oxlint、ユニットテストは Vitest、E2E テストは Playwright |
 | API サーバー | Java 21 + Spring Boot 4（Web MVC・Data JPA・Validation）、ビルドは Maven（`mvnw` 同梱）、コードチェックは spring-javaformat・SpotBugs |
 | データベース | PostgreSQL 17（Docker）、テーブルは Flyway で作成 |
 
@@ -67,7 +67,9 @@ kadai/
 │   │   ├── AddCardForm.tsx     カードの追加フォーム
 │   │   ├── PriorityPicker.tsx  優先順位（高・中・低）のラジオボタン
 │   │   ├── SearchForm.tsx      検索フォーム
-│   │   └── api.ts              API の呼び出し
+│   │   ├── api.ts              API の呼び出し（エラーは Problem Details の detail を理由にする）
+│   │   ├── due.ts              期限の表示（今日まで・期限切れなど）
+│   │   └── *.test.ts           ユニットテスト（Vitest）
 │   └── e2e/                画面を操作して DB の更新を確かめる E2E テスト（Playwright）
 ├── docs/要件定義書.md      アプリの要件
 ├── mock/kanban-mock.html   画面のモック
@@ -139,10 +141,11 @@ cd backend
 | API サーバー | `.\mvnw.cmd test` | API を通して DB を読み書きするテスト。データベースを起動しておく。テストごとに巻き戻すので DB の中身は変わらない |
 | API サーバー | `.\mvnw.cmd verify` | テストに加えて、書式チェック（spring-javaformat）と静的解析（SpotBugs）。書式は `.\mvnw.cmd spring-javaformat:apply` で直せる。SpotBugs で対象外にしたものは [backend/spotbugs-exclude.xml](backend/spotbugs-exclude.xml) |
 | 画面 | `npm run lint` | oxlint でコードをチェック（設定は [frontend/.oxlintrc.json](frontend/.oxlintrc.json)）。警告が 1 つでもあれば失敗する |
+| 画面 | `npm test` | ユニットテスト（Vitest）。期限の表示や API のエラーの読み取りなど、計算の部分を確かめる。サーバーは要らない |
 | 画面 | `npm run build` | 型チェックと本番用のビルド（`dist/` に出力） |
 | 画面 | `npm run test:e2e` | E2E テスト（下の「画面の操作が保存されるかを確かめる」） |
 
-Pull Request を作ったときと main に push したときは、GitHub Actions（[.github/workflows/ci.yml](.github/workflows/ci.yml)）が `npm run lint`・`npm run build`・`mvnw verify` を自動で実行します（E2E テストは除く）。結果は PR の「Checks」で見られます。
+Pull Request を作ったときと main に push したときは、GitHub Actions（[.github/workflows/ci.yml](.github/workflows/ci.yml)）が `npm run lint`・`npm test`・`npm run build`・`mvnw verify` を自動で実行します（E2E テストは除く）。結果は PR の「Checks」で見られます。
 
 ### 画面の操作が保存されるかを確かめる（E2E テスト）
 
@@ -154,6 +157,7 @@ Pull Request を作ったときと main に push したときは、GitHub Action
 | 確かめる操作 | 確かめること |
 | --- | --- |
 | 同じリストの中でドラッグ | 並べ替えた順で保存される |
+| キーボードの「移動」ボタン（Space → 矢印 → Space） | 別のリストへの移動が保存される。タイトルで Enter を押すと編集欄が開き、ラジオボタンの Space はドラッグにならない |
 | 別のリスト（「完了」・空のリスト）へドラッグ | 移動先・移動元の両方の並びが保存される |
 | カード上の「高・中・低」 | 優先順位が保存され、編集欄は開かない |
 | カードの編集（タイトル・期限・優先順位） | 保存される。前後の空白は除かれる。期限が近いと黄色、過ぎると赤 |
@@ -162,6 +166,7 @@ Pull Request を作ったときと main に push したときは、GitHub Action
 | カード右上の × → 確認の「削除する」 | 削除が保存される。× を押しても編集欄は開かず、確認が出る。検索結果の表示中も消せる |
 | 確認の「キャンセル」・Esc | 削除されない。「キャンセル」で閉じると × にフォーカスが戻る |
 | 保存の失敗 | 「保存できませんでした」と出て、表示が DB の状態に戻る |
+| API のエラー | API が返した理由（Problem Details の `detail`）がそのまま出る |
 | 「期限順に並べる」 | 期限順に並び、その順で保存される |
 | 「＋ リストを追加」 | 右端に追加され、前後の空白は除かれる。空の名前は追加できない |
 | リスト名をクリックして変更 | Enter・フォーカスを外すと保存される。Esc や空の名前では変わらない |
@@ -279,9 +284,9 @@ API サーバーは `http://localhost:8080` で動きます。リクエスト・
 
 | 操作 | やり方 | 呼ぶ API |
 | --- | --- | --- |
-| 並べ替え・別のリストへ移動 | カードをドラッグする（キーボードでは、カードにフォーカスして Space でつかみ、矢印で動かし、Space で置く。Esc で取り消し）。「完了」へ動かすのが完了の操作 | `PUT /api/cards/{id}/move` |
+| 並べ替え・別のリストへ移動 | カードをドラッグする（キーボードでは、タイトルから Tab で右上の「移動」ボタン ⠿ へ進み、Space でつかみ、矢印で動かし、Space で置く。Esc で取り消し）。「完了」へ動かすのが完了の操作 | `PUT /api/cards/{id}/move` |
 | 優先順位の切り替え | カード上の「高・中・低」を押す | `PATCH /api/cards/{id}` |
-| タイトル・期限・優先順位の編集 | カードをクリック（または Enter）して編集欄を開き、「保存」か Enter。Esc か「キャンセル」で取り消し。空のタイトルは保存しない | `PATCH /api/cards/{id}` |
+| タイトル・期限・優先順位の編集 | カードをクリック（キーボードではタイトルにフォーカスして Enter）して編集欄を開き、「保存」か Enter。Esc か「キャンセル」で取り消し。空のタイトルは保存しない | `PATCH /api/cards/{id}` |
 | 削除 | カードにマウスを乗せる（またはフォーカスする）と右上に出る × を押し、カードの中に出る確認で「削除する」を押す。「キャンセル」か Esc でやめる | `DELETE /api/cards/{id}` |
 | 期限順に並べる | ヘッダーの「期限順に並べる」 | `POST /api/board/sort-by-due` |
 

@@ -41,10 +41,12 @@ function ListHeader({ list, onRename, onDelete }: Props) {
         )}
       </div>
       {confirming && onDelete && (
-        // 確認の中のどのボタンにフォーカスがあっても Esc で閉じられるようにする
+        // 確認のダイアログ。中のどのボタンにフォーカスがあっても Esc で閉じる（WAI-ARIA のダイアログの決まり）。
+        // eslint-plugin-jsx-a11y の recommended はダイアログのキー操作を許すが、oxlint はその設定にまだ対応していない
         // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
-        <div className="confirm list-confirm" role="alert" onKeyDown={(e) => e.key === 'Escape' && cancelDelete()}>
-          <span>「{list.title}」とカード {list.cards.length} 枚を削除しますか？</span>
+        <div className="confirm list-confirm" role="alertdialog" aria-labelledby={`confirm-list-${list.id}`}
+          onKeyDown={(e) => e.key === 'Escape' && cancelDelete()}>
+          <span id={`confirm-list-${list.id}`}>「{list.title}」とカード {list.cards.length} 枚を削除しますか？</span>
           <button type="button" className="danger-btn" autoFocus onClick={onDelete}>削除する</button>
           <button type="button" className="ghost-btn" onClick={cancelDelete}>キャンセル</button>
         </div>

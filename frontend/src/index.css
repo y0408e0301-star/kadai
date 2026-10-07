@@ -71,9 +71,11 @@ header h1 { font-size: 18px; font-weight: 700; margin: 0; }
 .card {
   background: var(--card); border: 1px solid var(--edge); border-radius: 6px; box-shadow: var(--shadow);
   padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; cursor: grab; touch-action: none;
+  position: relative;
 }
 .card:hover { border-color: var(--quiet); }
-.card:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* キーボードでタイトル（編集ボタン）にフォーカスしたら、カード全体に枠を出す */
+.card:has(.card-title:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
 .card.dragging { opacity: .4; position: relative; z-index: 1; }
 .card.editing, .card.confirming { cursor: default; }
 .edit-input {
@@ -81,7 +83,16 @@ header h1 { font-size: 18px; font-weight: 700; margin: 0; }
   border: 1px solid var(--accent); border-radius: 6px; padding: 6px 8px;
 }
 .card-top { display: flex; align-items: flex-start; gap: 4px; }
-.card-title { flex: 1; min-width: 0; overflow-wrap: anywhere; line-height: 1.5; }
+.card-title {
+  flex: 1; min-width: 0; overflow-wrap: anywhere; line-height: 1.5; text-align: left;
+  font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: inherit;
+}
+.card-title:focus-visible { outline: none; }
+/* タイトルの編集ボタンをカード全体に広げる（カードのどこをクリックしても編集欄が開く）。
+   ×・移動ボタン・優先順位・確認はその上に重ねて、それぞれのボタンとして押せるようにする */
+.card-title::after { content: ""; position: absolute; inset: 0; border-radius: 6px; }
+.card .icon-btn, .card .prio-group, .card .confirm { position: relative; z-index: 1; }
+.drag-handle { cursor: grab; letter-spacing: -1px; }
 /* カードの × はマウスを乗せたときかフォーカスしたときだけ出す（モックと同じ） */
 .icon-btn {
   flex: none; width: 22px; height: 22px; font: inherit; font-size: 14px; line-height: 1;
