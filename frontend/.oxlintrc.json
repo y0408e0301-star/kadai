@@ -1,8 +1,34 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
+  "plugins": ["react", "typescript", "oxc", "unicorn", "jsx-a11y", "import", "promise"],
+  // correctness（ほぼ確実に間違い）はエラー、suspicious（間違いの疑い）は警告。
+  // npm run lint は --deny-warnings 付きなので、警告が 1 つでもあれば失敗する
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
   "rules": {
+    // React Hooks の決まり（呼ぶ場所・useEffect などの依存配列）。Vite の ESLint テンプレートと同じ
     "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+    "react/exhaustive-deps": "error",
+    // Vite の Fast Refresh が効くように、コンポーネントのファイルからはコンポーネントだけを export する
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    // React 17 からの JSX 変換では import React は要らない
+    "react/react-in-jsx-scope": "off",
+    // CSS は import するだけで読み込まれる
+    "import/no-unassigned-import": ["warn", { "allow": ["**/*.css"] }],
+    // role="status" の span で十分（output は計算結果を出すための要素）
+    "jsx-a11y/prefer-tag-over-role": "off",
+    // autoFocus は、操作して開いた入力欄・削除の確認へフォーカスを移すためにだけ使う（ページを開いたときには使わない）
+    "jsx-a11y/no-autofocus": "off"
+  },
+  "overrides": [
+    {
+      // E2E テストは画面を順に操作するので、ループの中で await する
+      "files": ["e2e/**"],
+      "rules": {
+        "no-await-in-loop": "off"
+      }
+    }
+  ]
 }
