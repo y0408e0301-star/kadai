@@ -1,0 +1,10 @@
+# Terraform の作業フォルダと状態ファイル（秘密鍵も入るのでリポジトリに入れない）
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars
+
+# SSH の秘密鍵
+kadai.pem
+tfplan

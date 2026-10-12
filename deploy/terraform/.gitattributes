@@ -1,0 +1,2 @@
+# user-data.sh は Linux で実行されるので、Windows でも改行を LF に固定する
+*.sh text eol=lf
