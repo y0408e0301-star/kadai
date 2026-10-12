@@ -74,6 +74,7 @@ resource "aws_instance" "kadai" {
   instance_type          = var.instance_type
   key_name               = aws_key_pair.kadai.key_name
   vpc_security_group_ids = [aws_security_group.web.id]
+  iam_instance_profile   = var.enable_rds ? aws_iam_instance_profile.ec2[0].name : null
   user_data              = file("${path.module}/user-data.sh")
 
   # CPU を使い続けたときの追加料金（Unlimited モード）を発生させない

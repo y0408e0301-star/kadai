@@ -11,6 +11,16 @@ output "public_dns" {
   value       = aws_eip.kadai.public_dns
 }
 
+output "db_endpoint" {
+  description = "RDS の接続先（EC2 からだけ届く）。enable_rds = false なら null"
+  value       = var.enable_rds ? aws_db_instance.kadai[0].address : null
+}
+
+output "db_secret_arn" {
+  description = "DB のユーザー名とパスワードが入ったシークレット。enable_rds = false なら null"
+  value       = var.enable_rds ? aws_db_instance.kadai[0].master_user_secret[0].secret_arn : null
+}
+
 output "ssh_command" {
   value = "ssh -i ${local_sensitive_file.ssh_private_key.filename} ec2-user@${aws_eip.kadai.public_dns}"
 }
