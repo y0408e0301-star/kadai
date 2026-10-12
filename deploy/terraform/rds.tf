@@ -64,25 +64,11 @@ resource "aws_db_instance" "kadai" {
   apply_immediately   = true
 }
 
-# EC2 が DB のパスワード（シークレット）を読むための権限
-resource "aws_iam_role" "ec2" {
-  count = local.rds_count
-  name  = "kadai-ec2"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "ec2.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
-}
-
+# EC2 のロールに、DB のパスワード（シークレット）を読む権限を付ける
 resource "aws_iam_role_policy" "read_db_secret" {
   count = local.rds_count
   name  = "read-db-secret"
-  role  = aws_iam_role.ec2[0].id
+  role  = aws_iam_role.ec2.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -92,10 +78,4 @@ resource "aws_iam_role_policy" "read_db_secret" {
       Resource = aws_db_instance.kadai[0].master_user_secret[0].secret_arn
     }]
   })
-}
-
-resource "aws_iam_instance_profile" "ec2" {
-  count = local.rds_count
-  name  = "kadai-ec2"
-  role  = aws_iam_role.ec2[0].name
 }
