@@ -152,8 +152,9 @@ cd backend
 | 画面 | `npm test` | ユニットテスト（Vitest）。期限の表示や API のエラーの読み取りなど、計算の部分を確かめる。サーバーは要らない |
 | 画面 | `npm run build` | 型チェックと本番用のビルド（`dist/` に出力） |
 | 画面 | `npm run test:e2e` | E2E テスト（下の「画面の操作が保存されるかを確かめる」） |
+| 公開環境 | `terraform fmt -check -recursive`・`terraform validate`・`tflint --init` → `tflint`（`deploy/terraform` で） | Terraform の書式・構文・書き方（設定は [deploy/terraform/.tflint.hcl](deploy/terraform/.tflint.hcl)）。AWS には接続しない。tflint は `winget install TerraformLinters.tflint` で入れる |
 
-Pull Request を作ったときと main に push したときは、GitHub Actions（[.github/workflows/ci.yml](.github/workflows/ci.yml)）が `npm run lint`・`npm test`・`npm run build`・`mvnw verify` を自動で実行します（E2E テストは除く）。結果は PR の「Checks」で見られます。
+Pull Request を作ったときと main に push したときは、GitHub Actions（[.github/workflows/ci.yml](.github/workflows/ci.yml)）が `npm run lint`・`npm test`・`npm run build`・`mvnw verify` と Terraform のチェック（fmt・validate・tflint）を自動で実行します（E2E テストは除く）。結果は PR の「Checks」で見られます。
 
 ### 画面の操作が保存されるかを確かめる（E2E テスト）
 
