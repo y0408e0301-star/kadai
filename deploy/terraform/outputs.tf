@@ -11,6 +11,11 @@ output "public_dns" {
   value       = aws_eip.kadai.public_dns
 }
 
+output "url" {
+  description = "公開 URL（CloudFront）"
+  value       = "https://${aws_cloudfront_distribution.kadai.domain_name}"
+}
+
 output "db_endpoint" {
   description = "RDS の接続先（EC2 からだけ届く）。enable_rds = false なら null"
   value       = var.enable_rds ? aws_db_instance.kadai[0].address : null
