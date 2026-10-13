@@ -57,10 +57,12 @@ resource "aws_db_instance" "kadai" {
   publicly_accessible    = false
   multi_az               = false
 
+  # 自動バックアップは 1 日分。7 日にしようとしたら無料プランの上限を超えるとして拒否された（FreeTierRestrictionError）
   backup_retention_period = 1
   # 課題用なので削除時の最終スナップショットは取らない
   skip_final_snapshot = true
-  deletion_protection = false
+  # 誤って RDS を消す apply（enable_rds = false・destroy）を止める。後片付けのときだけ false にする
+  deletion_protection = var.rds_deletion_protection
   apply_immediately   = true
 }
 
