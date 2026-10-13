@@ -122,6 +122,16 @@ function App() {
     setResults(null)
   }
 
+  if (error && import.meta.env.VITE_DEMO_NOTICE) {
+    // デモ環境（公開環境）は費用を抑えるため普段は止めている（deploy/stop.sh・毎日 5:00 の自動停止）
+    return (
+      <p className="message">
+        デモ環境は、費用を抑えるため普段は停止しています。画面の様子と使っている技術は
+        {' '}<a href="https://github.com/y0408e0301-star/kadai">GitHub の README</a>{' '}
+        で見られます。
+      </p>
+    )
+  }
   if (error) return <p className="message">ボードを読み込めませんでした（{error}）。API サーバーが起動しているか確認してください。</p>
   if (!board) return <p className="message">読み込み中…</p>
 
