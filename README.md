@@ -29,7 +29,7 @@ Trello 風のタスク管理アプリを作りながら、Java / Spring Boot / R
 | F-02 カードの追加・編集・削除 | ✅ | ✅ |
 | F-03 カードの移動（ドラッグ＆ドロップ） | ✅ | ✅ |
 | F-04 データの保存（PostgreSQL） | ✅ | ― |
-| F-05 Web 公開 | ― | まだ（公開先は未定） |
+| F-05 Web 公開 | ✅ | ✅（AWS。[公開環境へのデプロイ](#公開環境へのデプロイ)） |
 | F-06 削除の確認 | ― | ✅（リスト・カード） |
 | F-08 期限・優先順位 | ✅ | ✅ |
 | F-09 期限順の並べ替え | ✅ | ✅ |
@@ -44,6 +44,7 @@ Trello 風のタスク管理アプリを作りながら、Java / Spring Boot / R
 | 画面 | React 19 + TypeScript + Vite、ドラッグ＆ドロップは dnd-kit、コードチェックは oxlint、ユニットテストは Vitest、E2E テストは Playwright |
 | API サーバー | Java 21 + Spring Boot 4（Web MVC・Data JPA・Validation）、ビルドは Maven（`mvnw` 同梱）、コードチェックは spring-javaformat・SpotBugs |
 | データベース | PostgreSQL 17（Docker）、テーブルは Flyway で作成 |
+| 公開環境 | AWS（CloudFront・EC2・RDS for PostgreSQL 17）、環境は Terraform で作成、EC2 では nginx と systemd |
 
 ## フォルダ構成
 
