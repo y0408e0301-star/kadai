@@ -1,0 +1,2 @@
+# EC2（Linux）で使うファイルなので、Windows でも改行を LF に固定する
+* text eol=lf
