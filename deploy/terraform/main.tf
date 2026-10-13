@@ -100,6 +100,8 @@ resource "aws_instance" "kadai" {
   root_block_device {
     volume_size = 10
     volume_type = "gp3"
+    # 変えると EC2 が作り直しになる
+    encrypted = true
   }
 
   tags = {
