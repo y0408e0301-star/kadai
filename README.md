@@ -1,22 +1,105 @@
 # タスク管理アプリ（kadai）
 
-Trello 風のタスク管理アプリを作りながら、Java / Spring Boot / React / PostgreSQL での Web アプリ開発と、git / GitHub の使い方を学ぶための講義課題リポジトリです。
+タスクを「カード」として「リスト」（やること・作業中・完了）に並べ、ドラッグ＆ドロップで進み具合を管理する Trello 風の Web アプリです。画面は React、API は Spring Boot、データは PostgreSQL に保存し、AWS（CloudFront・EC2・RDS）で公開しています。
 
-タスクを「カード」として「リスト」（やること・作業中・完了）に並べ、進み具合を管理します。詳しい仕様は [docs/要件定義書.md](docs/要件定義書.md) にあります。
+講義課題として作り始め、要件定義から設計・実装・テスト・AWS への公開・運用までを一通り行いました。
+
+**デモ**：https://d8luytdd327lu.cloudfront.net
+
+> 費用を抑えるため、デモ環境は普段は停止しています（開くと「停止しています」の案内か、エラーの画面になります）。動いている様子は下の動画とスクリーンショットをご覧ください。デモ環境は誰でも操作でき、毎日 4:00 にサンプルのデータに戻ります。
+
+![マウスでのドラッグとキーボードでのカードの移動](docs/images/demo.gif)
 
 ## 目次
 
-- [できること](#できること)
-- [技術スタック](#技術スタック)
-- [フォルダ構成](#フォルダ構成)
-- [起動方法](#起動方法)
-- [テストデータを入れる](#テストデータを入れる)
-- [テストとコードチェック](#テストとコードチェック)
-- [API](#api)
-- [データベース](#データベース)
-- [公開環境へのデプロイ](#公開環境へのデプロイ)
-- [困ったとき](#困ったとき)
-- [開発ルール](#開発ルール)
+- [主な機能](#主な機能)
+- [スクリーンショット](#スクリーンショット)
+- [構成](#構成)
+- [工夫した点](#工夫した点)
+- [開発の進め方](#開発の進め方)
+- 開発者向け
+  - [できること（機能の一覧）](#できること)
+  - [技術スタック](#技術スタック)
+  - [フォルダ構成](#フォルダ構成)
+  - [起動方法](#起動方法)
+  - [テストデータを入れる](#テストデータを入れる)
+  - [テストとコードチェック](#テストとコードチェック)
+  - [API](#api)
+  - [データベース](#データベース)
+  - [公開環境へのデプロイ](#公開環境へのデプロイ)
+  - [困ったとき](#困ったとき)
+  - [開発ルール](#開発ルール)
+
+## 主な機能
+
+- **リストとカード**：リストの追加・名前変更・削除、カードの追加・編集・削除（削除の前に確認）
+- **ドラッグ＆ドロップ**：同じリストの中の並べ替えと、別のリストへの移動。マウスだけでなくキーボード（Space でつかむ → 矢印 → Space で置く）でも動かせる
+- **期限と優先順位**：期限が 2 日以内なら黄色、過ぎたら赤。優先順位（高・中・低）はカード上で切り替える。「期限順に並べる」で各リストを並べ替える
+- **検索**：タイトルの一部・リスト・優先順位・期限の範囲で絞り込む
+- **保存**：変更するたびに API 経由で DB に保存。失敗したら理由を表示し、画面を DB の状態に戻す
+- **ダークモード**：OS の設定に合わせて切り替わる
+
+## スクリーンショット
+
+| カードの編集 | 検索 |
+| --- | --- |
+| ![タイトル・期限・優先順位の編集](docs/images/edit.png) | ![タイトルの一部で検索した結果](docs/images/search.png) |
+
+| ボード（ライト） | ボード（ダーク） |
+| --- | --- |
+| ![ボード全体](docs/images/board.png) | ![ダークモードのボード](docs/images/board-dark.png) |
+
+## 構成
+
+```mermaid
+flowchart LR
+    browser["ブラウザ"]
+    cf["CloudFront<br/>HTTPS"]
+    sm["Secrets Manager<br/>DB のパスワード"]
+    sch["EventBridge Scheduler<br/>毎日 5:00 に停止"]
+
+    subgraph ec2["EC2（Amazon Linux 2023）"]
+        nginx["nginx"]
+        www["画面<br/>React のビルド"]
+        app["API サーバー<br/>Spring Boot"]
+    end
+    rds[("RDS<br/>PostgreSQL 17")]
+
+    browser --> cf --> nginx
+    nginx -- "/api/*" --> app
+    nginx -- "それ以外" --> www
+    app --> rds
+    app -. "起動前に読む" .-> sm
+    sch -. "停止" .-> ec2
+    sch -. "停止" .-> rds
+```
+
+| 部分 | 使っているもの |
+| --- | --- |
+| 画面 | React 19・TypeScript・Vite、ドラッグ＆ドロップは dnd-kit |
+| API サーバー | Java 21・Spring Boot 4（Web MVC・Data JPA・Validation）、テーブルは Flyway で作成 |
+| データベース | PostgreSQL 17（開発は Docker、公開環境は RDS） |
+| テスト・コードチェック | JUnit 5・Testcontainers・Vitest・Playwright、oxlint・spring-javaformat・SpotBugs・tflint |
+| 公開環境 | AWS（CloudFront・EC2・RDS・Secrets Manager・EventBridge Scheduler）を Terraform で作成 |
+| CI | GitHub Actions（PR ごとに画面・API・Terraform のチェックとテスト） |
+
+画面と API を同じ URL（CloudFront → nginx）で返すので、画面のコードは開発中と同じで動き、CORS の設定も要りません。設定値や運用は [docs/公開環境.md](docs/公開環境.md) にまとめています。
+
+## 工夫した点
+
+- **キーボードでも使える**：ドラッグ＆ドロップを Space・矢印キーでも操作でき、削除の確認は `alertdialog`（Esc で閉じる・閉じたらフォーカスを戻す）にしています。lint（oxlint の jsx-a11y）でアクセシビリティもチェックしています
+- **保存の失敗を利用者に分かる言葉で伝える**：API のエラーは RFC 9457 の Problem Details で返し（[ApiExceptionHandler.java](backend/src/main/java/com/example/kanban/ApiExceptionHandler.java)）、画面はその理由を表示して、表示を DB の状態に戻します（[api.ts](frontend/src/api.ts)）
+- **画面の操作が DB に保存されたことまで確かめる E2E テスト**：Playwright で画面を操作したあと、API で読んだ DB の中身と、ページを読み直したあとの表示の両方を確かめます（19 件）。API のテストは Testcontainers でテスト用の PostgreSQL を毎回起動するので、手元の DB の状態に左右されません
+- **公開環境で見つけた不具合を、テストで再現してから直す**：別のリストのカードの境目にドロップすると画面が真っ白になる不具合を、ドロップする位置を変えながら再現し、修正前のコードで失敗する E2E テストを書いてから、当たり判定を直しました（[#54](https://github.com/y0408e0301-star/kadai/pull/54)）
+- **AWS の環境をコードで管理する**：Terraform で作り、受け付ける通信は最小限にしています（EC2 は CloudFront からの HTTP と指定した IP からの SSH だけ、DB は EC2 からだけ）。DB のパスワードは RDS が Secrets Manager で管理し、7 日ごとに自動で変わっても API サーバーが自動で再起動してつなぎ直します（[db-secret.sh](deploy/server/db-secret.sh)）
+- **費用を抑える運用**：普段は止めておき、見せるときだけ `deploy/start.sh` で起動します。止め忘れても毎日 5:00 に自動で止まります。誰でも触れるデモ環境は、毎日 4:00 にサンプルのデータに戻ります（[DemoResetService.java](backend/src/main/java/com/example/kanban/DemoResetService.java)）
+
+## 開発の進め方
+
+- **Issue → ブランチ → Pull Request → squash マージ**：1 行の修正でも同じ流れにしています。main への直接のコミットは git フック（[.githooks/](.githooks/)）で止めます（[CONTRIBUTING.md](CONTRIBUTING.md)）
+- **PR ごとの自動チェック**：GitHub Actions で、画面（lint・ユニットテスト・型チェック・ビルド）、API（書式・静的解析・テスト）、Terraform（書式・構文・lint）を実行します
+- **要件定義書から作る**：機能・画面・API・技術構成を [docs/要件定義書.md](docs/要件定義書.md) に書き、実装と合っているかを確かめながら進めました
+- **AI（Claude Code）を使った開発**：コードの多くは AI のコーディングエージェント Claude Code と一緒に書いています（コミットの `Co-Authored-By` はそのためです）。上の開発ルール・テスト・CI の中で動かし、方針の決定と、PR を確認してマージするかどうかの判断は自分で行っています
 
 ## できること
 
