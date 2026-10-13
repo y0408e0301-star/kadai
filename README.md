@@ -347,7 +347,9 @@ curl.exe -s -X PUT http://localhost:8080/api/cards/1/move -H "Content-Type: appl
 
 公開環境は AWS の CloudFront → EC2 → RDS です（https://d8luytdd327lu.cloudfront.net ）。構成図・設定・運用・費用・困ったときは [docs/公開環境.md](docs/公開環境.md) にまとめています。
 
-CI が通った main を、`kadai` フォルダで次のコマンドで反映します（Windows では Git Bash）。
+費用を抑えるため、普段は止めています。見せるときは `bash deploy/start.sh` で起動し（5 分ほど）、終わったら `bash deploy/stop.sh` で止めます。止め忘れても毎日 5:00 に自動で止まります。
+
+CI が通った main を、`kadai` フォルダで次のコマンドで反映します（Windows では Git Bash。動いているときだけ）。
 
 ```
 git switch main

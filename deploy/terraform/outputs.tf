@@ -21,6 +21,11 @@ output "db_endpoint" {
   value       = var.enable_rds ? aws_db_instance.kadai[0].address : null
 }
 
+output "db_instance_id" {
+  description = "RDS の識別子（deploy/start.sh・stop.sh が使う）。enable_rds = false なら null"
+  value       = var.enable_rds ? aws_db_instance.kadai[0].identifier : null
+}
+
 output "db_secret_arn" {
   description = "DB のユーザー名とパスワードが入ったシークレット。enable_rds = false なら null"
   value       = var.enable_rds ? aws_db_instance.kadai[0].master_user_secret[0].secret_arn : null
