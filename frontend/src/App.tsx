@@ -135,6 +135,9 @@ function App() {
     <>
       <header>
         <h1>タスク管理</h1>
+        {import.meta.env.VITE_DEMO_NOTICE && (
+          <span className="demo-notice">デモ環境：毎日 4:00 にサンプルのデータに戻ります</span>
+        )}
         <span className="spacer" />
         <span className={`save-state${saveStatus && !saveStatus.ok && saving === 0 ? ' error' : ''}`} role="status">
           {saving > 0 ? '保存中…' : saveStatus?.text}

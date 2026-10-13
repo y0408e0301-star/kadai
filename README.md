@@ -34,6 +34,7 @@ Trello 風のタスク管理アプリを作りながら、Java / Spring Boot / R
 | F-08 期限・優先順位 | ✅ | ✅ |
 | F-09 期限順の並べ替え | ✅ | ✅ |
 | F-10 カードの検索（タイトル・リスト・優先順位・期限） | ✅ | ✅ |
+| F-11 デモ環境のリセット（公開環境だけ、毎日 4:00 にサンプルへ戻す） | ✅ | ✅ |
 
 画面の完成イメージは [mock/kanban-mock.html](mock/kanban-mock.html) をブラウザで開くと操作できます（データはブラウザ内だけで動くモックです）。
 
@@ -58,7 +59,8 @@ kadai/
 │           ├── application-dev.properties   dev プロファイル用（テストデータを入れる）
 │           └── db/
 │               ├── migration/   テーブル作成と初期リスト（Flyway）
-│               └── testdata/    開発用のテストデータ（dev のときだけ）
+│               ├── testdata/    開発用のテストデータ（dev のときと、デモ環境のリセット）
+│               └── demo/        デモ環境のリセット（全部消して初期の 3 リストに戻す）
 ├── frontend/               画面（React + Vite）
 │   ├── src/
 │   │   ├── App.tsx             ボードの読み込み・検索・リストとカードの追加と更新・保存状態の表示
@@ -141,6 +143,7 @@ cd backend
 - Flyway が 1 回だけ入れるので、2 回目以降の起動では増えません
 - 今あるカードは消さず、「やること」「作業中」「完了」の末尾に追加します
 - 期限は入れた日からの相対日付なので、期限が近いカード・過ぎたカードが必ず含まれます
+- 公開環境（デモ環境）でも、毎日 4:00 に同じデータへ戻します（[DemoResetService](backend/src/main/java/com/example/kanban/DemoResetService.java)。設定 `kanban.demo.reset-cron` があるときだけ動き、開発・テストでは動きません）
 
 ## テストとコードチェック
 

@@ -13,6 +13,8 @@ ExecStartPre=+/opt/kadai/bin/db-secret.sh write
 Environment=SPRING_CONFIG_IMPORT=configtree:/run/kadai/db/
 # nginx からだけ受ける（ポートは既定の 8080 のまま）
 Environment=SERVER_ADDRESS=127.0.0.1
+# デモ環境：毎日 4:00（日本時間）にボードをサンプルのデータに戻す（DemoResetService）
+Environment="KANBAN_DEMO_RESET_CRON=0 0 4 * * *"
 # メモリ 1 GB の EC2 に合わせてヒープを抑える
 ExecStart=/usr/bin/java -Xmx384m -jar /opt/kadai/app.jar
 # systemctl stop（SIGTERM）での終了を失敗として扱わない

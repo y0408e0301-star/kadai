@@ -37,7 +37,8 @@ host=ec2-user@$ec2_dns
 ssh_opts=(-i "$key" -o StrictHostKeyChecking=accept-new)
 
 echo "== ビルド（$branch $commit）"
-(cd frontend && npm ci && npm run build)
+# VITE_DEMO_NOTICE：画面に「毎日サンプルに戻る」と表示する（公開環境はデモ環境）
+(cd frontend && npm ci && VITE_DEMO_NOTICE=1 npm run build)
 # テストは CI（GitHub Actions）で実行済みなので、ここでは飛ばす
 (cd backend && ./mvnw -B -q package -DskipTests)
 jar=$(ls backend/target/backend-*.jar)
