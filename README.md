@@ -14,6 +14,7 @@ Trello 風のタスク管理アプリを作りながら、Java / Spring Boot / R
 - [テストとコードチェック](#テストとコードチェック)
 - [API](#api)
 - [データベース](#データベース)
+- [公開環境へのデプロイ](#公開環境へのデプロイ)
 - [困ったとき](#困ったとき)
 - [開発ルール](#開発ルール)
 
@@ -74,6 +75,10 @@ kadai/
 ├── docs/要件定義書.md      アプリの要件
 ├── mock/kanban-mock.html   画面のモック
 ├── compose.yaml            開発用の PostgreSQL
+├── deploy/
+│   ├── deploy.sh           公開環境へのデプロイ（ビルド → EC2 へ転送 → 再起動）
+│   ├── server/             EC2 の設定（nginx・API サーバーの systemd・DB の接続情報）
+│   └── terraform/          AWS の環境（EC2・RDS・CloudFront）
 ├── .githooks/              main へのコミットなどを止める git フック
 ├── .github/workflows/      GitHub Actions（コードチェックとテストの自動実行）
 ├── CONTRIBUTING.md         開発ルール
@@ -331,6 +336,41 @@ curl.exe -s -X PUT http://localhost:8080/api/cards/1/move -H "Content-Type: appl
 - リストを消すと、中のカードも一緒に消えます（`ON DELETE CASCADE`）
 - テーブルを変えるときは、既存の SQL を書き換えず `V2__....sql` のように新しいファイルを足します
 
+## 公開環境へのデプロイ
+
+公開環境は AWS の CloudFront → EC2 → RDS です。
+
+```
+ブラウザ ──HTTPS──▶ CloudFront ──HTTP:80──▶ EC2
+                                           ├ nginx (80)
+                                           │   ├ /       → 画面（frontend/dist）
+                                           │   └ /api/*  → API サーバー（127.0.0.1:8080）
+                                           └ API サーバー（systemd の kadai サービス）
+                                                   └──▶ RDS（PostgreSQL 17）
+```
+
+| 部分 | 設定の場所 |
+| --- | --- |
+| AWS の環境 | [deploy/terraform/](deploy/terraform/)（`terraform apply` で作る。公開 URL は `terraform output url`） |
+| EC2 の設定 | [deploy/server/](deploy/server/)（デプロイのたびに [setup.sh](deploy/server/setup.sh) で最新にする） |
+| DB の接続情報 | RDS が Secrets Manager に保存したものを、API サーバーの起動前に読む（[db-secret.sh](deploy/server/db-secret.sh)）。RDS がパスワードを自動で変えたら 10 分以内に API サーバーを再起動する |
+
+### デプロイする
+
+main を最新にしてから、`kadai` フォルダで次を実行します（Windows では Git Bash）。
+
+```
+git switch main
+git pull
+bash deploy/deploy.sh
+```
+
+- 画面と API サーバーをビルドし、EC2 へ転送して入れ替え、API サーバーを再起動します。最後に公開 URL で `/api/health` と画面を確かめます
+- コミットしていない変更があると止まります（どのコミットを公開したかは EC2 の `/opt/kadai/COMMIT` に残ります）
+- テストは CI で実行済みのものとして飛ばします。CI が通った main を反映してください
+- 必要なもの：`terraform apply` 済みの `deploy/terraform`（接続先と SSH の鍵 `kadai.pem` を読む）、JDK 21、Node.js、SSH を許可した IP（`terraform.tfvars` の `ssh_cidr`）からの接続
+- API サーバーのログは EC2 で `sudo journalctl -u kadai` で見られます（SSH は `terraform output ssh_command`）
+
 ## 困ったとき
 
 | 症状 | 原因と対処 |
@@ -342,6 +382,7 @@ curl.exe -s -X PUT http://localhost:8080/api/cards/1/move -H "Content-Type: appl
 | 画面に「ボードを読み込めませんでした」と出る | API サーバーが起動していない。http://localhost:8080/api/health を確認する |
 | PowerShell で日本語が文字化けする | `[Console]::OutputEncoding = [Text.Encoding]::UTF8` を実行し、`curl.exe` を使う |
 | テストデータが入らない | すでに 1 回入れている（Flyway は同じものを 2 回入れない）。入れ直すときは `docker compose down -v` で DB を消してから起動し直す（**全データが消える**） |
+| `deploy.sh` が SSH でタイムアウトする | 自分のグローバル IP が変わった。`curl https://checkip.amazonaws.com` で調べ、`deploy/terraform/terraform.tfvars` の `ssh_cidr` を直して `terraform apply` する |
 | コミットが「main への直接コミットは禁止」で止まる | 正常な動き。Issue を立ててブランチを切る（下の開発ルール） |
 
 ## 開発ルール
