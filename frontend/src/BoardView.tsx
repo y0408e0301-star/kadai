@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import {
-  closestCorners, DndContext, KeyboardSensor, PointerSensor, useDroppable, useSensor, useSensors,
+  closestCenter, closestCorners, DndContext, getFirstCollision, KeyboardSensor, PointerSensor, pointerWithin,
+  rectIntersection, useDroppable, useSensor, useSensors,
 } from '@dnd-kit/core'
-import type { DragEndEvent, DragOverEvent, UniqueIdentifier } from '@dnd-kit/core'
+import type { CollisionDetection, DragEndEvent, DragOverEvent, UniqueIdentifier } from '@dnd-kit/core'
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import AddCardForm from './AddCardForm'
 import AddListForm from './AddListForm'
@@ -40,6 +41,30 @@ function BoardView({
   const [draft, setDraft] = useState<List[] | null>(null)
   const shown = draft ?? lists
 
+  // 当たり判定（どのカード・リストの上にいるか）。dnd-kit の複数リストの例（MultipleContainers）と同じ考え方
+  // - ポインターの真下にあるものを当たりにする（つかんだカードの四隅で決めると、配置が少し変わるだけで相手が入れ替わる）
+  // - リストの入れ物の上なら、その中でいちばん近いカードにする（カードのないリストはリストのまま）
+  // - 別のリストへ移した直後は、元のリストが縮んで配置が変わり、移す・戻すを繰り返すことがある（React の更新の
+  //   上限に当たって画面が壊れる：#53）。移した直後のフレームだけは前回の結果をそのまま使う
+  const lastOverId = useRef<UniqueIdentifier | null>(null)
+  const movedToOtherList = useRef(false)
+  const collisionDetection: CollisionDetection = useCallback((args) => {
+    // キーボードでの移動は、矢印キーで決めた位置（sortableKeyboardCoordinates）に合う closestCorners を使う
+    if (args.pointerCoordinates === null) return closestCorners(args)
+    if (movedToOtherList.current && lastOverId.current !== null) return [{ id: lastOverId.current }]
+    const underPointer = pointerWithin(args)
+    let overId = getFirstCollision(underPointer.length > 0 ? underPointer : rectIntersection(args), 'id')
+    if (overId === null) return lastOverId.current === null ? [] : [{ id: lastOverId.current }]
+    const list = shown.find((l) => listKey(l.id) === overId)
+    if (list && list.cards.length > 0) {
+      const keys = new Set<UniqueIdentifier>(list.cards.map((c) => cardKey(c.id)))
+      const nearest = closestCenter({ ...args, droppableContainers: args.droppableContainers.filter((c) => keys.has(c.id)) })
+      overId = nearest[0]?.id ?? overId
+    }
+    lastOverId.current = overId
+    return [{ id: overId }]
+  }, [shown])
+
   // 5px 動かすまではドラッグにしない（クリックで編集欄を開けるように）。
   // キーボードは Space でつかむ・置く、矢印で動かす、Esc で取り消し（Enter は編集に使う）
   const sensors = useSensors(
@@ -63,12 +88,15 @@ function BoardView({
       const below = overIndex >= 0 && active.rect.current.translated !== null
         && active.rect.current.translated.top > over.rect.top + over.rect.height / 2
       const index = overIndex < 0 ? to.cards.length : overIndex + (below ? 1 : 0)
+      movedToOtherList.current = true
       return d.map((l) => {
         if (l.id === from.id) return { ...l, cards: l.cards.filter((c) => c.id !== card.id) }
         if (l.id === to.id) return { ...l, cards: [...l.cards.slice(0, index), card, ...l.cards.slice(index)] }
         return l
       })
     })
+    // 移したあとの描画が終わったら、当たり判定を通常に戻す
+    requestAnimationFrame(() => { movedToOtherList.current = false })
   }
 
   // 置いた場所（リストと位置）が元と違えば保存する
@@ -86,7 +114,7 @@ function BoardView({
   }
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCorners}
+    <DndContext sensors={sensors} collisionDetection={collisionDetection}
       onDragStart={() => setDraft(lists)} onDragOver={onDragOver} onDragEnd={onDragEnd}
       onDragCancel={() => setDraft(null)}>
       <main className="board">
