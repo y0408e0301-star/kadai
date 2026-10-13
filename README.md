@@ -73,7 +73,9 @@ kadai/
 │   │   ├── due.ts              期限の表示（今日まで・期限切れなど）
 │   │   └── *.test.ts           ユニットテスト（Vitest）
 │   └── e2e/                画面を操作して DB の更新を確かめる E2E テスト（Playwright）
-├── docs/要件定義書.md      アプリの要件
+├── docs/
+│   ├── 要件定義書.md       アプリの要件
+│   └── 公開環境.md         公開環境（AWS）の構成図・設定・運用
 ├── mock/kanban-mock.html   画面のモック
 ├── compose.yaml            開発用の PostgreSQL
 ├── deploy/
@@ -339,26 +341,9 @@ curl.exe -s -X PUT http://localhost:8080/api/cards/1/move -H "Content-Type: appl
 
 ## 公開環境へのデプロイ
 
-公開環境は AWS の CloudFront → EC2 → RDS です。
+公開環境は AWS の CloudFront → EC2 → RDS です（https://d8luytdd327lu.cloudfront.net ）。構成図・設定・運用・費用・困ったときは [docs/公開環境.md](docs/公開環境.md) にまとめています。
 
-```
-ブラウザ ──HTTPS──▶ CloudFront ──HTTP:80──▶ EC2
-                                           ├ nginx (80)
-                                           │   ├ /       → 画面（frontend/dist）
-                                           │   └ /api/*  → API サーバー（127.0.0.1:8080）
-                                           └ API サーバー（systemd の kadai サービス）
-                                                   └──▶ RDS（PostgreSQL 17）
-```
-
-| 部分 | 設定の場所 |
-| --- | --- |
-| AWS の環境 | [deploy/terraform/](deploy/terraform/)（`terraform apply` で作る。公開 URL は `terraform output url`） |
-| EC2 の設定 | [deploy/server/](deploy/server/)（デプロイのたびに [setup.sh](deploy/server/setup.sh) で最新にする） |
-| DB の接続情報 | RDS が Secrets Manager に保存したものを、API サーバーの起動前に読む（[db-secret.sh](deploy/server/db-secret.sh)）。RDS がパスワードを自動で変えたら 10 分以内に API サーバーを再起動する |
-
-### デプロイする
-
-main を最新にしてから、`kadai` フォルダで次を実行します（Windows では Git Bash）。
+CI が通った main を、`kadai` フォルダで次のコマンドで反映します（Windows では Git Bash）。
 
 ```
 git switch main
@@ -366,11 +351,7 @@ git pull
 bash deploy/deploy.sh
 ```
 
-- 画面と API サーバーをビルドし、EC2 へ転送して入れ替え、API サーバーを再起動します。最後に公開 URL で `/api/health` と画面を確かめます
-- コミットしていない変更があると止まります（どのコミットを公開したかは EC2 の `/opt/kadai/COMMIT` に残ります）
-- テストは CI で実行済みのものとして飛ばします。CI が通った main を反映してください
-- 必要なもの：`terraform apply` 済みの `deploy/terraform`（接続先と SSH の鍵 `kadai.pem` を読む）、JDK 21、Node.js、SSH を許可した IP（`terraform.tfvars` の `ssh_cidr`）からの接続
-- API サーバーのログは EC2 で `sudo journalctl -u kadai` で見られます（SSH は `terraform output ssh_command`）
+画面と API サーバーをビルドして EC2 へ転送し、入れ替えて再起動したあと、公開 URL で動作を確かめます。初めて環境を作るときの手順は [docs/公開環境.md の「初めて環境を作る」](docs/公開環境.md#初めて環境を作る) を見てください。
 
 ## 困ったとき
 
