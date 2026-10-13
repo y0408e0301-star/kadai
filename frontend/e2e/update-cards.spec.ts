@@ -82,14 +82,14 @@ function waitForApi(page: Page, method: string, path: string) {
   return page.waitForResponse((r) => r.request().method() === method && new URL(r.url()).pathname === path)
 }
 
-// source をつかんで target の上（top）・下（bottom）・真ん中（center）に置く。
+// source をつかんで target の上（top）・下（bottom）・真ん中（center）・下端ぎりぎり（edge：次のカードとの境目）に置く。
 // dnd-kit は 5px 動かすとドラッグが始まるので、少しずつ動かす
-async function dragTo(page: Page, source: Locator, target: Locator, where: 'top' | 'bottom' | 'center') {
+async function dragTo(page: Page, source: Locator, target: Locator, where: 'top' | 'bottom' | 'center' | 'edge') {
   await source.scrollIntoViewIfNeeded()
   const s = await source.boundingBox()
   const t = await target.boundingBox()
   if (!s || !t) throw new Error('ドラッグする要素が見えません')
-  const y = where === 'top' ? t.y + 4 : where === 'bottom' ? t.y + t.height - 4 : t.y + t.height / 2
+  const y = { top: t.y + 4, bottom: t.y + t.height - 4, center: t.y + t.height / 2, edge: t.y + t.height - 1 }[where]
   await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2)
   await page.mouse.down()
   await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2 + 10, { steps: 5 })
@@ -122,6 +122,39 @@ test('同じリストの中でドラッグして並べ替えると、その順�
   await page.reload()
   await expect(column.locator('[data-card-id]')).toHaveCount(3)
   expect(await shownIds(column)).toEqual([b, c, a])
+})
+
+// #53：別のリストのカードの下端（次のカードとの境目）に置くと、移す・戻すが繰り返されて画面が真っ白になっていた
+// 置く位置はちょうど X と Y の境目なので、どこに入るかは決めない（画面が壊れず、表示と保存が一致していればよい）
+test('別のリストのカードの下端に置いても画面が壊れず、移動が保存される', async ({ page, request }) => {
+  const from = await createList(request, '移動元')
+  const to = await createList(request, '移動先')
+  const a = await createCard(request, from.id, 'カード A')
+  const b = await createCard(request, from.id, 'カード B')
+  const c = await createCard(request, from.id, 'カード C')
+  const x = await createCard(request, to.id, 'カード X')
+  const y = await createCard(request, to.id, 'カード Y')
+
+  const errors: string[] = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await page.goto('/')
+  const toColumn = listColumn(page, to.title)
+  await expect(toColumn.locator('[data-card-id]')).toHaveCount(2)
+
+  // B を「移動先」の X の下端ぎりぎり（Y との境目）へ
+  const saved = waitForApi(page, 'PUT', `/api/cards/${b}/move`)
+  await dragTo(page, cardEl(page, b), cardEl(page, x), 'edge')
+  expect((await saved).status()).toBe(204)
+  expect(errors).toEqual([])
+  await expect(toColumn.locator('[data-card-id]')).toHaveCount(3)
+  expect(await cardIds(request, from.id)).toEqual([a, c])
+  const savedOrder = await cardIds(request, to.id)
+  expect(savedOrder.toSorted((p, q) => p - q)).toEqual([x, y, b].toSorted((p, q) => p - q))
+  expect(await shownIds(toColumn)).toEqual(savedOrder)
+
+  await page.reload()
+  await expect(toColumn.locator('[data-card-id]')).toHaveCount(3)
+  expect(await shownIds(toColumn)).toEqual(savedOrder)
 })
 
 test('別のリストへドラッグすると移動が保存される（「完了」へ動かす操作）', async ({ page, request }) => {
