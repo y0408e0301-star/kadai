@@ -13,15 +13,6 @@ data "aws_ec2_managed_prefix_list" "cloudfront" {
   name = "com.amazonaws.global.cloudfront.origin-facing"
 }
 
-# ssh_cidr を指定しなければ、terraform を実行した PC のグローバル IP を使う
-data "http" "my_ip" {
-  url = "https://checkip.amazonaws.com"
-}
-
-locals {
-  ssh_cidr = var.ssh_cidr != "" ? var.ssh_cidr : "${chomp(data.http.my_ip.response_body)}/32"
-}
-
 # SSH の鍵。秘密鍵は kadai.pem に保存する（.gitignore 済み。state にも入るので state も共有しない）
 resource "tls_private_key" "ssh" {
   algorithm = "ED25519"
@@ -59,7 +50,7 @@ resource "aws_vpc_security_group_ingress_rule" "ssh" {
   ip_protocol       = "tcp"
   from_port         = 22
   to_port           = 22
-  cidr_ipv4         = local.ssh_cidr
+  cidr_ipv4         = var.ssh_cidr
 }
 
 # パッケージや Docker イメージの取得に使う
@@ -69,11 +60,32 @@ resource "aws_vpc_security_group_egress_rule" "all" {
   cidr_ipv4         = "0.0.0.0/0"
 }
 
+# EC2 のロール。権限は必要なものだけ別に付ける（RDS があるときはシークレットの読み取り: rds.tf）
+# RDS の有無で付け外しすると、削除済みのプロファイルが EC2 に関連付いたまま残るので、常に付けておく
+resource "aws_iam_role" "ec2" {
+  name = "kadai-ec2"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_instance_profile" "ec2" {
+  name = "kadai-ec2"
+  role = aws_iam_role.ec2.name
+}
+
 resource "aws_instance" "kadai" {
   ami                    = data.aws_ssm_parameter.al2023_arm64.value
   instance_type          = var.instance_type
   key_name               = aws_key_pair.kadai.key_name
   vpc_security_group_ids = [aws_security_group.web.id]
+  iam_instance_profile   = aws_iam_instance_profile.ec2.name
   user_data              = file("${path.module}/user-data.sh")
 
   # CPU を使い続けたときの追加料金（Unlimited モード）を発生させない

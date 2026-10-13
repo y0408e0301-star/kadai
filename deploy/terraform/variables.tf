@@ -10,8 +10,13 @@ variable "instance_type" {
   default     = "t4g.micro"
 }
 
+variable "enable_rds" {
+  description = "RDS（PostgreSQL）を作るか。月 20 ドル前後かかるので、使うときだけ true にする"
+  type        = bool
+  default     = false
+}
+
 variable "ssh_cidr" {
-  description = "SSH（22 番）を許可する接続元。空なら terraform を実行した PC のグローバル IP（/32）にする"
+  description = "SSH（22 番）を許可する接続元。自分のグローバル IP を /32 で書く（例：terraform.tfvars に ssh_cidr = \"203.0.113.10/32\"）。IP は curl https://checkip.amazonaws.com で調べられる"
   type        = string
-  default     = ""
 }
