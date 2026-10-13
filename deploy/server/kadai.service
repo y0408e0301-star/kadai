@@ -1,0 +1,24 @@
+# API サーバー（Spring Boot）。EC2 の /etc/systemd/system/kadai.service に置く
+# ログは journalctl -u kadai で見られる
+[Unit]
+Description=kadai API server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=kadai
+# 起動前に DB の接続情報を Secrets Manager から読む（+ は root で実行する印）
+ExecStartPre=+/opt/kadai/bin/db-secret.sh write
+# 読んだ接続情報（DB_URL・DB_USERNAME・DB_PASSWORD のファイル）を Spring Boot の設定として取り込む
+Environment=SPRING_CONFIG_IMPORT=configtree:/run/kadai/db/
+# nginx からだけ受ける（ポートは既定の 8080 のまま）
+Environment=SERVER_ADDRESS=127.0.0.1
+# メモリ 1 GB の EC2 に合わせてヒープを抑える
+ExecStart=/usr/bin/java -Xmx384m -jar /opt/kadai/app.jar
+# systemctl stop（SIGTERM）での終了を失敗として扱わない
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
