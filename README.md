@@ -81,7 +81,7 @@ flowchart LR
 | データベース | PostgreSQL 17（開発は Docker、公開環境は RDS） |
 | テスト・コードチェック | JUnit 5・Testcontainers・Vitest・Playwright、oxlint・spring-javaformat・SpotBugs・tflint |
 | 公開環境 | AWS（CloudFront・EC2・RDS・Secrets Manager・EventBridge Scheduler）を Terraform で作成 |
-| CI | GitHub Actions（PR ごとに画面・API・Terraform のチェックとテスト） |
+| CI | GitHub Actions（PR ごとに画面・API・Terraform のチェックとテスト、E2E テスト） |
 
 画面と API を同じ URL（CloudFront → nginx）で返すので、画面のコードは開発中と同じで動き、CORS の設定も要りません。設定値や運用は [docs/公開環境.md](docs/公開環境.md) にまとめています。
 
@@ -97,7 +97,7 @@ flowchart LR
 ## 開発の進め方
 
 - **Issue → ブランチ → Pull Request → squash マージ**：1 行の修正でも同じ流れにしています。main への直接のコミットは git フック（[.githooks/](.githooks/)）で止めます（[CONTRIBUTING.md](CONTRIBUTING.md)）
-- **PR ごとの自動チェック**：GitHub Actions で、画面（lint・ユニットテスト・型チェック・ビルド）、API（書式・静的解析・テスト）、Terraform（書式・構文・lint）を実行します
+- **PR ごとの自動チェック**：GitHub Actions で、画面（lint・ユニットテスト・型チェック・ビルド）、API（書式・静的解析・テスト）、E2E テスト（DB・API・画面をランナーの中で起動して Playwright で操作）、Terraform（書式・構文・lint）を実行します
 - **要件定義書から作る**：機能・画面・API・技術構成を [docs/要件定義書.md](docs/要件定義書.md) に書き、実装と合っているかを確かめながら進めました
 - **AI（Claude Code）を使った開発**：コードの多くは AI のコーディングエージェント Claude Code と一緒に書いています（コミットの `Co-Authored-By` はそのためです）。上の開発ルール・テスト・CI の中で動かし、方針の決定と、PR を確認してマージするかどうかの判断は自分で行っています
 
@@ -240,7 +240,7 @@ cd backend
 | 画面 | `npm run test:e2e` | E2E テスト（下の「画面の操作が保存されるかを確かめる」） |
 | 公開環境 | `terraform fmt -check -recursive`・`terraform validate`・`tflint --init` → `tflint`（`deploy/terraform` で） | Terraform の書式・構文・書き方（設定は [deploy/terraform/.tflint.hcl](deploy/terraform/.tflint.hcl)）。AWS には接続しない。tflint は `winget install TerraformLinters.tflint` で入れる |
 
-Pull Request を作ったときと main に push したときは、GitHub Actions（[.github/workflows/ci.yml](.github/workflows/ci.yml)）が `npm run lint`・`npm test`・`npm run build`・`mvnw verify` と Terraform のチェック（fmt・validate・tflint）を自動で実行します（E2E テストは除く）。結果は PR の「Checks」で見られます。
+Pull Request を作ったときと main に push したときは、GitHub Actions（[.github/workflows/ci.yml](.github/workflows/ci.yml)）が `npm run lint`・`npm test`・`npm run build`・`mvnw verify`、E2E テスト（`npm run test:e2e`）と Terraform のチェック（fmt・validate・tflint）を自動で実行します。結果は PR の「Checks」で見られます。
 
 ### 画面の操作が保存されるかを確かめる（E2E テスト）
 
@@ -273,6 +273,7 @@ Pull Request を作ったときと main に push したときは、GitHub Action
 - 3 つのサーバー（DB・API・画面）を起動してから、`frontend` で `npm run test:e2e` を実行します
 - テストは自分用のリスト（`E2E …`）を作って操作し、終わったら消します。「期限順に並べる」のテストはもとのカードの順を覚えておき、最後に戻します
 - 失敗したときは `test-results/` に操作の記録（trace）が残ります。`npx playwright show-trace <trace.zip>` で見られます
+- CI でも、ランナーの中で同じ 3 つのサーバー（DB 5432・API 8080 は dev プロファイル・画面 5173）を起動して実行します。失敗したときは、Actions の実行結果の画面から成果物 `e2e-results`（trace と API・画面のログ）を取り出せます
 
 ## API
 
