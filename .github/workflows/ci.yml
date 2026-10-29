@@ -45,6 +45,63 @@ jobs:
           cache: maven
       - run: ./mvnw -B verify
 
+  e2e:
+    name: E2E テスト（Playwright）
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # 手元と同じく、DB（5432）・API サーバー（8080）・画面（5173）をランナーの中で起動し、画面を Edge で操作する。
+    # Edge は ubuntu-latest に入っている（playwright.config.ts の channel: msedge）
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      # compose.yaml の db には healthcheck がないので、接続を受け付けるまで待つ
+      - name: DB を起動する（5432）
+        run: |
+          docker compose up -d db
+          for i in $(seq 60); do
+            docker compose exec -T db pg_isready -h 127.0.0.1 -U kanban -d kanban && exit 0
+            sleep 1
+          done
+          exit 1
+      # テスト・書式・静的解析は backend ジョブで実行するので、ここでは jar を作るだけ。
+      # 手元の E2E と同じく dev プロファイル（テストデータ入り）で起動する
+      - name: API サーバーを起動する（8080）
+        working-directory: backend
+        run: |
+          ./mvnw -B -q -DskipTests -Dspring-javaformat.skip=true package
+          nohup java -jar target/backend-0.0.1-SNAPSHOT.jar --spring.profiles.active=dev > ../api.log 2>&1 &
+          curl -sf --retry 60 --retry-delay 1 --retry-all-errors http://localhost:8080/api/health
+      - run: npm ci
+        working-directory: frontend
+      # 5173 が使えないときに別のポートで起動しないよう --strictPort
+      - name: 画面を起動する（5173）
+        working-directory: frontend
+        run: |
+          nohup npm run dev -- --strictPort > ../vite.log 2>&1 &
+          curl -sf -o /dev/null --retry 30 --retry-delay 1 --retry-all-errors http://localhost:5173/
+      - run: npm run test:e2e
+        working-directory: frontend
+      # 失敗したテストの操作の記録（npx playwright show-trace で開く）と、サーバーのログ
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: e2e-results
+          path: |
+            frontend/test-results/
+            api.log
+            vite.log
+          if-no-files-found: ignore
+          retention-days: 7
+
   terraform:
     name: Terraform（書式・構文・lint）
     runs-on: ubuntu-latest
