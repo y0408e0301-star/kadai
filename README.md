@@ -1,12 +1,10 @@
 # タスク管理アプリ（kadai）
 
-タスクを「カード」として「リスト」（やること・作業中・完了）に並べ、ドラッグ＆ドロップで進み具合を管理する Trello 風の Web アプリです。画面は React、API は Spring Boot、データは PostgreSQL に保存し、AWS（CloudFront・EC2・RDS）で公開しています。
+タスクを「カード」として「リスト」（やること・作業中・完了）に並べ、ドラッグ＆ドロップで進み具合を管理する Trello 風の Web アプリです。画面は React、API は Spring Boot、データは PostgreSQL に保存し、AWS（CloudFront・EC2・RDS）で公開しました。
 
 講義課題として作り始め、要件定義から設計・実装・テスト・AWS への公開・運用までを一通り行いました。
 
-**デモ**：https://d8luytdd327lu.cloudfront.net
-
-> 費用を抑えるため、デモ環境は普段は停止しています（開くと「停止しています」の案内か、エラーの画面になります）。動いている様子は下の動画とスクリーンショットをご覧ください。デモ環境は誰でも操作でき、毎日 4:00 にサンプルのデータに戻ります。
+> **公開環境について**：AWS に公開し、誰でも操作できるデモ環境（毎日 4:00 にサンプルのデータに戻る）として運用しました。費用をかけないよう、今は環境を消してあります。動いている様子は下の動画とスクリーンショットをご覧ください。[docs/公開環境.md の「初めて環境を作る」](docs/公開環境.md#初めて環境を作る)の手順で作り直せます（URL は作り直すと変わります）。
 
 ![マウスでのドラッグとキーボードでのカードの移動](docs/images/demo.gif)
 
@@ -92,7 +90,7 @@ flowchart LR
 - **画面の操作が DB に保存されたことまで確かめる E2E テスト**：Playwright で画面を操作したあと、API で読んだ DB の中身と、ページを読み直したあとの表示の両方を確かめます（19 件）。API のテストは Testcontainers でテスト用の PostgreSQL を毎回起動するので、手元の DB の状態に左右されません
 - **公開環境で見つけた不具合を、テストで再現してから直す**：別のリストのカードの境目にドロップすると画面が真っ白になる不具合を、ドロップする位置を変えながら再現し、修正前のコードで失敗する E2E テストを書いてから、当たり判定を直しました（[#54](https://github.com/y0408e0301-star/kadai/pull/54)）
 - **AWS の環境をコードで管理する**：Terraform で作り、受け付ける通信は最小限にしています（EC2 は CloudFront からの HTTP と指定した IP からの SSH だけ、DB は EC2 からだけ）。DB のパスワードは RDS が Secrets Manager で管理し、7 日ごとに自動で変わっても API サーバーが自動で再起動してつなぎ直します（[db-secret.sh](deploy/server/db-secret.sh)）
-- **費用を抑える運用**：普段は止めておき、見せるときだけ `deploy/start.sh` で起動します。止め忘れても毎日 5:00 に自動で止まります。誰でも触れるデモ環境は、毎日 4:00 にサンプルのデータに戻ります（[DemoResetService.java](backend/src/main/java/com/example/kanban/DemoResetService.java)）
+- **費用を抑える運用**：公開していた間は、普段は止めておき、見せるときだけ `deploy/start.sh` で起動しました。止め忘れても毎日 5:00 に自動で止まります。誰でも触れるデモ環境は、毎日 4:00 にサンプルのデータに戻ります（[DemoResetService.java](backend/src/main/java/com/example/kanban/DemoResetService.java)）
 
 ## 開発の進め方
 
@@ -430,9 +428,9 @@ curl.exe -s -X PUT http://localhost:8080/api/cards/1/move -H "Content-Type: appl
 
 ## 公開環境へのデプロイ
 
-公開環境は AWS の CloudFront → EC2 → RDS です（https://d8luytdd327lu.cloudfront.net ）。構成図・設定・運用・費用・困ったときは [docs/公開環境.md](docs/公開環境.md) にまとめています。
+公開環境は AWS の CloudFront → EC2 → RDS です。構成図・設定・運用・費用・困ったときは [docs/公開環境.md](docs/公開環境.md) にまとめています。
 
-費用を抑えるため、普段は止めています。見せるときは `bash deploy/start.sh` で起動し（5 分ほど）、終わったら `bash deploy/stop.sh` で止めます。止め忘れても毎日 5:00 に自動で止まります。
+今は環境を消してあります。使うときは [docs/公開環境.md の「初めて環境を作る」](docs/公開環境.md#初めて環境を作る)の手順で作り直します（URL は CloudFront を作るたびに変わります）。作った後は、普段は止めておき、見せるときだけ `bash deploy/start.sh` で起動し（5 分ほど）、終わったら `bash deploy/stop.sh` で止めます。止め忘れても毎日 5:00 に自動で止まります。
 
 CI が通った main を、`kadai` フォルダで次のコマンドで反映します（Windows では Git Bash。動いているときだけ）。
 
